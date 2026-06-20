@@ -15,28 +15,6 @@ from email import policy
 from email.parser import BytesParser
 
 st.set_page_config(page_title="Führer", layout="wide")
-
-with open("IMG_5029.png", "rb") as f:
-    img_data = f.read()
-b64 = base64.b64encode(img_data).decode()
-st.markdown(
-    f"""
-    <style>
-    .stApp {{
-        background: url(data:image/png;base64,{b64});
-        background-size: cover;
-        background-attachment: fixed;
-    }}
-    .stApp, .stMarkdown, .stTitle, .stSubheader, .stTextInput, .stButton, .stFileUploader, .stTabs {{
-        background-color: rgba(255, 255, 255, 0.88) !important;
-        border-radius: 12px;
-        padding: 8px;
-    }}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
 st.title("🦾 Führer 🦾")
 st.markdown("")
 
