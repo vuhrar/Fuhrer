@@ -15,8 +15,6 @@ from sentence_transformers import SentenceTransformer
 
 # ===== الإعدادات العامة =====
 st.set_page_config(page_title="Führer", layout="wide")
-st.set_page_config(page_title="Führer", layout="wide")
-
 # ===== خلفية الصورة =====
 import base64
 def set_bg_hack(main_bg):
