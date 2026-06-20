@@ -3,7 +3,6 @@ import base64
 import re
 import tempfile
 from datetime import datetime, timedelta
-from pathlib import Path
 from PIL import Image
 import PyPDF2
 import pdfplumber
@@ -11,46 +10,34 @@ from docx import Document
 import pytesseract
 import chromadb
 from sentence_transformers import SentenceTransformer
-import os
 import email
 from email import policy
 from email.parser import BytesParser
 
 st.set_page_config(page_title="Führer", layout="wide")
 
-def set_background(image_file):
-    try:
-        with open(image_file, "rb") as f:
-            img_data = f.read()
-        b64 = base64.b64encode(img_data).decode()
-        st.markdown(
-            f"""
-            <style>
-            .stApp {{
-                background: url(data:image/png;base64,{b64});
-                background-size: cover;
-                background-attachment: fixed;
-            }}
-            .stApp, .stMarkdown, .stTitle, .stSubheader, .stTextInput, .stButton, .stFileUploader, .stTabs {{
-                background-color: rgba(255, 255, 255, 0.88) !important;
-                border-radius: 12px;
-                padding: 8px;
-            }}
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
-        return True
-    except:
-        st.warning("⚠️ الصورة غير موجودة")
-        return False
+with open("IMG_5029.png", "rb") as f:
+    img_data = f.read()
+b64 = base64.b64encode(img_data).decode()
+st.markdown(
+    f"""
+    <style>
+    .stApp {{
+        background: url(data:image/png;base64,{b64});
+        background-size: cover;
+        background-attachment: fixed;
+    }}
+    .stApp, .stMarkdown, .stTitle, .stSubheader, .stTextInput, .stButton, .stFileUploader, .stTabs {{
+        background-color: rgba(255, 255, 255, 0.88) !important;
+        border-radius: 12px;
+        padding: 8px;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
-if Path("IMG_5029.png").exists():
-    set_background("IMG_5029.png")
-else:
-    st.warning("⚠️ ارفع الصورة")
-
-st.title("🦾 Führer")
+st.title("🦾 Führer 🦾")
 st.markdown("")
 
 @st.cache_resource
@@ -104,9 +91,6 @@ class DocumentIntelligence:
         matches = re.findall(pattern, text)
         return [f"{m[0]}/{m[1]}/{m[2]}" for m in matches]
 
-    def extract_articles(self, text):
-        return re.findall(r'(المادة\s*[\(]?\s*[١٢٣٤٥٦٧٨٩٠]+\s*[\)]?)', text)
-
 class TimelineEngine:
     def build_timeline(self, texts):
         events = []
@@ -140,15 +124,15 @@ class DualAnalyzer:
         for ev in timeline:
             txt = ev["text"].lower()
             if "أقر" in txt or "اعترف" in txt:
-                weaknesses.append("⚠️ اعتراف ضمني")
+                weaknesses.append("اعتراف ضمني")
             if "عذر" in txt or "مرض" in txt:
-                strengths.append("✅ أعذار رسمية")
+                strengths.append("أعذار رسمية")
             if "توقيع" not in txt and "ختم" not in txt:
-                weaknesses.append("❌ خطاب بدون توقيع")
+                weaknesses.append("خطاب بدون توقيع")
             if "المادة" in txt:
-                strengths.append("📜 استشهاد بمواد")
+                strengths.append("استشهاد بمواد")
             if "تهديد" in txt:
-                weaknesses.append("⚡ لغة تهديدية")
+                weaknesses.append("لغة تهديدية")
         return {"strengths": list(set(strengths)), "weaknesses": list(set(weaknesses))}
 
 class PleadingEngine:
@@ -199,17 +183,20 @@ def calculate_deadlines(events):
 
 def calculate_risk(timeline, gaps, contradictions, style_score):
     risk = len(gaps) * 2 + len(contradictions) * 5 + style_score
-    if len(timeline) < 2: risk += 10
+    if len(timeline) < 2:
+        risk += 10
     return min(risk, 100)
 
 def credibility_score(texts):
     score = 100
     for t in texts:
-        if "نحن نؤكد" in t: score -= 5
-        if "مادة" in t and "خطأ" in t: score -= 10
+        if "نحن نؤكد" in t:
+            score -= 5
+        if "مادة" in t and "خطأ" in t:
+            score -= 10
     return max(score, 0)
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["📚 رفع الملفات", "🔎 البحث", "📊 الجدول الزمني", "⚖️ التحليل", "📄 التقارير"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["رفع الملفات", "البحث", "الجدول الزمني", "التحليل", "التقارير"])
 uploaded_files = []
 
 with tab1:
@@ -277,8 +264,10 @@ with tab4:
             st.metric("التناقضات", len(contradictions))
             st.metric("التصعيد", style_score)
         
-        for s in result["strengths"]: st.success(s)
-        for w in result["weaknesses"]: st.error(w)
+        for s in result["strengths"]:
+            st.success(s)
+        for w in result["weaknesses"]:
+            st.error(w)
 
 with tab5:
     st.subheader("التقارير واللوائح")
@@ -294,7 +283,8 @@ with tab5:
         risk = calculate_risk(timeline, gaps, contradictions, style_score)
         cred = credibility_score(texts)
         report = f"الخطورة: {risk}\nالمصداقية: {cred}\nالتناقضات: {len(contradictions)}\nالفجوات: {len(gaps)}\n"
-        for d in deadlines: report += f"\n- {d['event']} → {d['deadline']}"
+        for d in deadlines:
+            report += f"\n- {d['event']} → {d['deadline']}"
         st.download_button("تحميل", data=report, file_name="تقرير.txt")
     
     template = st.selectbox("نوع اللائحة", ["مذكرة دفاع", "صحيفة دعوى", "عريضة اعتراض"])
