@@ -9,7 +9,7 @@ from datetime import datetime
 
 st.set_page_config(page_title="Führer", layout="wide")
 st.title("⚖️ Führer")
-st.markdown("**المنصة السيادية للتحليل القانوني والاستدلال القضائي**")
+st.markdown("🦾")
 
 # نموذج التضمينات (للبحث الدلالي)
 @st.cache_resource
