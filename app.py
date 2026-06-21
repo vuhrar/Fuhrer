@@ -14,6 +14,7 @@ import email
 from email import policy
 from email.parser import BytesParser
 from transformers import pipeline
+import os
 
 st.set_page_config(page_title="Führer", layout="wide")
 
@@ -406,6 +407,20 @@ def settlement_calculator(risk, credibility, contradictions):
     else:
         return "فرصة الصلح متوسطة، يحتاج تقييم إضافي."
 
+# ===== تحميل ملف الأنظمة تلقائياً (إن وجد) =====
+law_file_path = "الأنظمة السعودية.pdf"
+if os.path.exists(law_file_path):
+    with open(law_file_path, "rb") as f:
+        text = DocumentIntelligence().extract_text(f)
+        if text:
+            chunks = [text[i:i+800] for i in range(0, len(text), 800)]
+            for i, chunk in enumerate(chunks):
+                emb = embedder.encode(chunk).tolist()
+                collection.add(documents=[chunk], embeddings=[emb], ids=[f"law_{i}"])
+    st.success("✅ تم تحميل الأنظمة السعودية كمرجع تلقائياً.")
+else:
+    st.warning("⚠️ ملف الأنظمة غير موجود، ارفعه يدوياً في التبويب الأول.")
+
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "📚 الملفات", "🔎 البحث", "📊 الجدول الزمني", "⚖️ التحليل الثنائي", "📄 التقارير", "🧠 الاستراتيجية", "⚙️ الأدوات المتقدمة", "🤖 Hugging Face"
 ])
@@ -414,7 +429,7 @@ uploaded_files = []
 
 with tab1:
     st.subheader("رفع الملفات")
-    uploaded = st.file_uploader("اختر الملفات", type=["pdf","docx","txt","png","jpg","jpeg","eml"], accept_multiple_files=True)
+    uploaded = st.file_uploader("اختر الملفات (PDF, DOCX, TXT, صور, EML)", type=["pdf","docx","txt","png","jpg","jpeg","eml"], accept_multiple_files=True)
     if uploaded:
         uploaded_files = uploaded
         if st.button("فهرسة وتحليل"):
@@ -431,8 +446,8 @@ with tab1:
             st.success(f"تم فهرسة {total} قطعة")
 
 with tab2:
-    st.subheader("البحث الدلالي في الملفات المفهرسة")
-    query = st.text_input("اكتب سؤالك أو كلمتك المفتاحية")
+    st.subheader("البحث الدلالي")
+    query = st.text_input("اكتب سؤالك القانوني")
     if query:
         q_emb = embedder.encode(query).tolist()
         results = collection.query(query_embeddings=[q_emb], n_results=5)
@@ -448,15 +463,11 @@ with tab3:
         engine = TimelineEngine()
         timeline = engine.build_timeline(texts)
         gaps = engine.calculate_gaps(timeline)
-        st.markdown("**الأحداث مرتبة زمنياً:**")
         for ev in timeline:
             st.write(f"- {ev['date'].strftime('%d/%m/%Y')}: {ev['text'][:100]}...")
         if gaps:
-            st.warning("**الفجوات الزمنية (تجاوز 30 يوماً):**")
             for g in gaps:
-                st.write(f"من {g['from']} إلى {g['to']} = {g['days']} يوماً")
-        else:
-            st.success("لا توجد فجوات زمنية ملحوظة.")
+                st.warning(f"فجوة {g['days']} يوم من {g['from']} إلى {g['to']}")
 
 with tab4:
     st.subheader("نقاط القوة والضعف")
@@ -475,22 +486,18 @@ with tab4:
         
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("مؤشر الخطورة", f"{risk}/100")
+            st.metric("الخطورة", f"{risk}/100")
             st.metric("مصداقية الخصم", f"{cred}/100")
         with col2:
-            st.metric("عدد التناقضات", len(contradictions))
-            st.metric("درجة التصعيد", style_score)
+            st.metric("التناقضات", len(contradictions))
+            st.metric("التصعيد", style_score)
         
-        st.markdown("**🟢 نقاط قوتك:**")
-        for s in result["strengths"]:
-            st.success(s)
-        st.markdown("**🔴 نقاط ضعفك:**")
-        for w in result["weaknesses"]:
-            st.error(w)
+        for s in result["strengths"]: st.success(s)
+        for w in result["weaknesses"]: st.error(w)
 
 with tab5:
     st.subheader("التقارير واللوائح")
-    if uploaded_files and st.button("توليد تقرير كامل"):
+    if uploaded_files and st.button("تقرير كامل"):
         parser = DocumentIntelligence()
         texts = [parser.extract_text(f) for f in uploaded_files]
         engine = TimelineEngine()
@@ -503,30 +510,11 @@ with tab5:
         cred = credibility_score(texts)
         facts = extract_fact_summary(timeline)
         parties = extract_party_names(texts)
-        
-        report = f"""
-تقرير Führer الشامل
-===================
-التاريخ: {datetime.now().strftime('%d/%m/%Y')}
-عدد الملفات: {len(uploaded_files)}
-الأطراف: {', '.join(parties)}
-مؤشر الخطورة: {risk}/100
-مصداقية الخصم: {cred}/100
-عدد التناقضات: {len(contradictions)}
-درجة التصعيد: {style_score}
-عدد الفجوات الزمنية: {len(gaps)}
-
-الوقائع المستخلصة:
-{facts}
-
-المواعيد النهائية:
-"""
-        for d in deadlines:
-            report += f"\n- {d['event']} → {d['deadline']}"
-        st.download_button("تحميل التقرير", data=report, file_name="تقرير_Führer.txt")
+        report = f"الخطورة: {risk}\nالمصداقية: {cred}\nالتناقضات: {len(contradictions)}\nالفجوات: {len(gaps)}\nالوقائع: {facts}\nالمواعيد:\n"
+        for d in deadlines: report += f"- {d['event']} → {d['deadline']}\n"
+        st.download_button("تحميل", data=report, file_name="تقرير.txt")
     
-    st.subheader("صياغة لائحة")
-    template = st.selectbox("اختر نوع اللائحة", ["مذكرة دفاع", "صحيفة دعوى", "عريضة اعتراض"])
+    template = st.selectbox("نوع اللائحة", ["مذكرة دفاع", "صحيفة دعوى", "عريضة اعتراض"])
     if uploaded_files and st.button("أنشئ مسودة"):
         parser = DocumentIntelligence()
         texts = [parser.extract_text(f) for f in uploaded_files]
@@ -537,21 +525,12 @@ with tab5:
         analyzer = DualAnalyzer()
         result = analyzer.analyze(timeline)
         defenses = "\n".join(result["strengths"]) if result["strengths"] else "سيتم تحديد الدفوع لاحقاً"
-        data = {
-            "court": "محكمة العمل/ديوان المظالم",
-            "case_no": "قيد التحليل",
-            "client": parties[0] if parties else "الطرف الأول",
-            "opponent": parties[1] if len(parties) > 1 else "الجهة الخصمة",
-            "facts": facts,
-            "defenses": defenses,
-            "requests": "إلغاء القرار الصادر ضدنا، وإلزام الخصم بالتعويض"
-        }
+        data = {"court": "محكمة العمل", "case_no": "قيد التحليل", "client": parties[0] if parties else "الطرف الأول", "opponent": parties[1] if len(parties) > 1 else "الخصم", "facts": facts, "defenses": defenses, "requests": "إلغاء القرار والتعويض"}
         engine = PleadingEngine()
-        draft = engine.generate(template, data)
-        st.text_area("المسودة (قابلة للتعديل)", draft, height=300)
+        st.text_area("المسودة", engine.generate(template, data), height=300)
 
 with tab6:
-    st.subheader("الاستراتيجية المقترحة")
+    st.subheader("الاستراتيجية")
     if uploaded_files:
         parser = DocumentIntelligence()
         texts = [parser.extract_text(f) for f in uploaded_files]
@@ -561,8 +540,7 @@ with tab6:
         contradictions = detect_contradictions(texts)
         style_score = analyze_style(texts)
         risk = calculate_risk(timeline, gaps, contradictions, style_score)
-        strategy = generate_strategy(timeline, gaps, contradictions, risk)
-        st.markdown(strategy)
+        st.markdown(generate_strategy(timeline, gaps, contradictions, risk))
 
 with tab7:
     st.subheader("الأدوات المتقدمة")
@@ -574,46 +552,30 @@ with tab7:
         contradictions = detect_contradictions(texts)
         cred = credibility_score(texts)
         risk = calculate_risk(timeline, gaps, contradictions, analyze_style(texts))
-        
-        st.markdown("**نقاط القرار الحرجة:**")
         for ev in timeline:
             if "فصل" in ev["text"] or "إيقاف" in ev["text"] or "اعتراض" in ev["text"]:
                 st.warning(f"- {ev['date'].strftime('%d/%m/%Y')}: {ev['text'][:100]}...")
-        
-        st.markdown("**تكتيك الخصم الزمني:**")
-        pattern = procedural_pattern_analyzer(timeline)
-        st.info(pattern)
-        
-        st.markdown("**حاسبة فرص الصلح:**")
-        settlement = settlement_calculator(risk, cred, len(contradictions))
-        st.info(settlement)
-        
-        st.markdown("**فجوات الأدلة (ادعاءات غير مدعومة):**")
+        st.info(procedural_pattern_analyzer(timeline))
+        st.info(settlement_calculator(risk, cred, len(contradictions)))
         claims = []
         for t in texts:
             claims.extend(DocumentIntelligence().extract_claims(t))
         gaps_evidence = extract_evidence_gaps(texts, claims)
         if gaps_evidence:
-            for g in gaps_evidence:
-                st.error(f"- {g}")
-        else:
-            st.success("جميع الادعاءات مدعومة بمستندات.")
+            for g in gaps_evidence: st.error(f"- {g}")
+        else: st.success("جميع الادعاءات مدعومة.")
 
 with tab8:
-    st.subheader("Hugging Face – أي نموذج تختاره")
-    model_name = st.text_input("أدخل اسم النموذج من Hugging Face", value="faisalaljahlan/Labour-Law-SA-QA")
-    
+    st.subheader("Hugging Face")
+    model_name = st.text_input("اسم النموذج", value="faisalaljahlan/Labour-Law-SA-QA")
     @st.cache_resource
-    def load_hf_model(name):
-        return pipeline("text-generation", model=name)
-    
-    if st.button("تحميل النموذج"):
-        with st.spinner("جاري تحميل النموذج..."):
+    def load_hf_model(name): return pipeline("text-generation", model=name)
+    if st.button("تحميل"):
+        with st.spinner("..."):
             pipe = load_hf_model(model_name)
             st.session_state["hf_pipe"] = pipe
-            st.success("تم التحميل.")
-    
-    prompt = st.text_area("أدخل النص أو السؤال")
-    if st.button("تشغيل النموذج") and "hf_pipe" in st.session_state:
+            st.success("تم.")
+    prompt = st.text_area("النص")
+    if st.button("تشغيل") and "hf_pipe" in st.session_state:
         result = st.session_state["hf_pipe"](prompt, max_new_tokens=200)
         st.write(result[0]['generated_text'])
