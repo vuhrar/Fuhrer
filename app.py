@@ -28,6 +28,60 @@ if not logger.handlers:
     logging.basicConfig(level=logging.INFO)
 
 st.set_page_config(page_title="Führer", layout="wide")
+st.markdown("""
+<style>
+    .stApp {
+        background-color: #0a0a0a;
+        color: white;
+        font-family: sans-serif;
+    }
+    .stTextInput > div > div > input {
+        width: 100% !important;
+        padding: 10px !important;
+        background-color: #1a1a1a !important;
+        color: white !important;
+        border: 1px solid #333 !important;
+        border-radius: 4px !important;
+    }
+    .stButton > button {
+        width: 100% !important;
+        padding: 10px !important;
+        margin-top: 5px !important;
+        background-color: gold !important;
+        color: black !important;
+        border: none !important;
+        border-radius: 4px !important;
+        font-weight: bold !important;
+    }
+    .stMarkdown, .stTitle, .stSubheader, .stText {
+        color: white !important;
+        font-family: sans-serif !important;
+    }
+    .stTabs [data-baseweb="tab-list"] button {
+        background-color: #1a1a1a !important;
+        color: white !important;
+        border-radius: 4px !important;
+        margin: 2px !important;
+    }
+    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
+        background-color: gold !important;
+        color: black !important;
+    }
+    .stMetric label, .stMetric .stMetricValue, .stMetric .stMetricDelta {
+        color: white !important;
+    }
+    .stTextArea textarea {
+        background-color: #1a1a1a !important;
+        color: white !important;
+        border: 1px solid #333 !important;
+    }
+    .stAlert {
+        background-color: #1a1a1a !important;
+        color: white !important;
+        border-color: #333 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # =========================
 # Safer environment helpers
