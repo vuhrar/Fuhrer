@@ -1,4 +1,3 @@
-cat > /mnt/user-data/outputs/fuehrer_v2.py << 'ENDOFFILE'
 """
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║         FÜHRER v2.0 — نظام الذكاء القانوني السعودي                         ║
@@ -1654,5 +1653,4 @@ st.markdown("""
 Führer v2.0 | نظام الذكاء القانوني السعودي | محسَّن لـ iPhone 13 Mini (4GB RAM)
 <br>Schema: text · article_number · law_name · law_type · source
 </p>""", unsafe_allow_html=True)
-ENDOFFILE
 echo "Done. Lines: $(wc -l < /mnt/user-data/outputs/fuehrer_v2.py)"
