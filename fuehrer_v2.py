@@ -1,4 +1,3 @@
-cat > /mnt/user-data/outputs/fuehrer_v2.py << 'PYEOF'
 """
 Führer 
 """
