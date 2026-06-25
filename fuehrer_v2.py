@@ -419,51 +419,7 @@ with st.sidebar:
     st.markdown("---")
 
     # النموذج والمفاتيح
-    st.markdown("**🤖 النموذج**")
-    provider = st.selectbox("النموذج", [
-        "Gemini (Google) — مجاني",
-        "Groq (مجاني وسريع)",
-        "Claude (Anthropic)",
-    ], label_visibility="collapsed",
-       index=["Gemini (Google) — مجاني","Groq (مجاني وسريع)","Claude (Anthropic)"].index(
-           st.session_state.ai_provider) if st.session_state.ai_provider in
-           ["Gemini (Google) — مجاني","Groq (مجاني وسريع)","Claude (Anthropic)"] else 0)
-
-    if provider != st.session_state.ai_provider:
-        st.session_state.ai_provider = provider
-        save_settings()
-
-    if "Gemini" in provider:
-        k = st.text_input("Gemini Key", value=st.session_state.gemini_key,
-                          type="password", label_visibility="collapsed",
-                          placeholder="AIza...")
-        if k != st.session_state.gemini_key:
-            st.session_state.gemini_key = k
-            save_settings()
-        st.markdown("[🔑 احصل على Key مجاني](https://aistudio.google.com/apikey)")
-        if k: st.success("✅ محفوظ")
-
-    elif "Groq" in provider:
-        k = st.text_input("Groq Key", value=st.session_state.groq_key,
-                          type="password", label_visibility="collapsed",
-                          placeholder="gsk_...")
-        if k != st.session_state.groq_key:
-            st.session_state.groq_key = k
-            save_settings()
-        st.markdown("[🔑 احصل على Key مجاني](https://console.groq.com)")
-        if k: st.success("✅ محفوظ")
-
-    elif "Claude" in provider:
-        k = st.text_input("Claude Key", value=st.session_state.claude_key,
-                          type="password", label_visibility="collapsed",
-                          placeholder="sk-ant-...")
-        if k != st.session_state.claude_key:
-            st.session_state.claude_key = k
-            save_settings()
-        st.markdown("[🔑 احصل على Key](https://console.anthropic.com)")
-        if k: st.success("✅ محفوظ")
-
-    st.markdown("---")
+   
 
     # الجلسات
     st.markdown("**💬 الجلسات المحفوظة**")
