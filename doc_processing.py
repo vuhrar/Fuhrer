@@ -6,8 +6,8 @@
 from typing import List, Dict
 import io, re
 from datetime import datetime
-from .utils import _bytes, _norm
-
+import json
+from utils import _bytes, _norm
 
 def extract_laws_from_text(text: str, source: str = "") -> List[Dict]:
     records = []
