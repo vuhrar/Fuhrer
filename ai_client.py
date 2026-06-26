@@ -47,7 +47,12 @@ class AIClient:
             return d["candidates"][0]["content"]["parts"][0]["text"]
 
         elif self.fmt == "anthropic":
-            payload = json.dumps({"model": self.model, "messages": messages, "system": system}).encode()
+            payload = json.dumps({
+    "model": self.model,
+    "messages": messages,
+    "system": system,
+    "max_tokens": 2048  
+}).encode()
             headers = {"Content-Type": "application/json", "x-api-key": self.api_key, "anthropic-version": "2023-06-01"}
             d = self._post(self.endpoint, payload, headers)
             return d.get("content", [{}])[0].get("text", "")
