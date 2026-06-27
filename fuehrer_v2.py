@@ -18,7 +18,7 @@ html, body, .stApp {
    ================================ */
 .stApp > .main {
     background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(0px);
+    backdrop-filter: none;
 }
 
 /* ================================
