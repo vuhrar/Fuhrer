@@ -1,3 +1,4 @@
+<style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800;900&display=swap');
 
 * {
@@ -7,7 +8,6 @@
     font-family: 'Cairo', sans-serif;
     direction: rtl;
 }
-
 html, body, .stApp {
     background: #f0f2f5 !important;
 }
@@ -34,7 +34,6 @@ html, body, .stApp {
     margin: 0;
     text-transform: uppercase;
 }
-
 .hdr h1::after {
     content: '';
     display: block;
@@ -53,7 +52,6 @@ html, body, .stApp {
     border-radius: 12px 12px 0 0;
     flex-wrap: wrap;
 }
-
 .stTabs [data-baseweb="tab"] {
     background: transparent !important;
     color: #555555 !important;
@@ -65,20 +63,17 @@ html, body, .stApp {
     transition: all 0.3s ease !important;
     white-space: nowrap;
 }
-
 .stTabs [data-baseweb="tab"]:hover {
     background: rgba(212, 168, 32, 0.06) !important;
     color: rgb(212, 168, 32) !important;
     border-color: rgb(212, 168, 32) !important;
 }
-
 .stTabs [data-baseweb="tab"][aria-selected="true"] {
     background: #2c2c3e !important;
     color: #ffffff !important;
     border-color: rgb(212, 168, 32) !important;
     font-weight: 700 !important;
 }
-
 .stTabs [data-baseweb="tab-panel"] {
     background: #ffffff;
     border: 1px solid #e8e8e8;
@@ -93,10 +88,9 @@ html, body, .stApp {
     border-radius: 8px !important;
     font-weight: 700 !important;
     padding: 12px 28px !important;
-    transition: all 0.3s ease !important;
     font-size: 15px !important;
+    transition: all 0.3s ease !important;
 }
-
 .stButton button:hover {
     background: rgb(212, 168, 32) !important;
     color: #1a1a2e !important;
@@ -113,7 +107,6 @@ html, body, .stApp {
     font-size: 15px !important;
     padding: 14px 18px !important;
 }
-
 .stTextInput input:focus,
 .stTextArea textarea:focus {
     border-color: rgb(212, 168, 32) !important;
@@ -125,9 +118,8 @@ html, body, .stApp {
     border-radius: 12px !important;
     padding: 32px !important;
 }
-
 [data-testid="stFileUploader"]:hover {
-    border-color: #c49a1a !important;
+    border-color: rgb(196, 154, 26) !important;
 }
 
 .chat-user {
@@ -143,7 +135,6 @@ html, body, .stApp {
     font-size: 15px;
     line-height: 1.7;
 }
-
 .chat-ai {
     background: #ffffff;
     border: 1px solid #e8e8e8;
@@ -188,13 +179,11 @@ html, body, .stApp {
     text-align: center;
     border-top: 3px solid rgb(212, 168, 32);
 }
-
 .metric-card .label {
     font-size: 13px;
     color: #777777;
     font-weight: 600;
 }
-
 .metric-card .value {
     font-size: 30px;
     font-weight: 800;
@@ -203,27 +192,13 @@ html, body, .stApp {
 }
 
 @media (max-width: 768px) {
-    .hdr h1 {
-        font-size: 34px !important;
-    }
-    .stTabs [data-baseweb="tab"] {
-        font-size: 13px !important;
-        padding: 8px 14px !important;
-    }
-    .stTabs [data-baseweb="tab-panel"] {
-        padding: 18px 16px;
-    }
+    .hdr h1 { font-size: 34px !important; }
+    .stTabs [data-baseweb="tab"] { font-size: 13px !important; padding: 8px 14px !important; }
+    .stTabs [data-baseweb="tab-panel"] { padding: 18px 16px; }
 }
-
 @media (max-width: 480px) {
-    .hdr h1 {
-        font-size: 26px !important;
-    }
-    .stTabs [data-baseweb="tab"] {
-        font-size: 11px !important;
-        padding: 6px 10px !important;
-    }
-    .stTabs [data-baseweb="tab-panel"] {
-        padding: 14px 12px;
-    }
+    .hdr h1 { font-size: 26px !important; }
+    .stTabs [data-baseweb="tab"] { font-size: 11px !important; padding: 6px 10px !important; }
+    .stTabs [data-baseweb="tab-panel"] { padding: 14px 12px; }
 }
+</style>
