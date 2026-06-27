@@ -7,3 +7,5 @@ pytest>=7.0
 pytesseract>=0.3.10
 pdf2image>=1.16.0
 pillow>=9.0.0
+pytesseract
+pdf2image
