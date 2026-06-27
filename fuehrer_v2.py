@@ -10,7 +10,7 @@
 
 html, body, .stApp {
     background: #f0f2f5 !important;
-    min-height: 100vh;
+    min-height: 100%;
 }
 
 /* ================================
