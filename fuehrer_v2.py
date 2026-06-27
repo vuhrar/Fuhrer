@@ -1,4 +1,5 @@
-#Führer🦾
+#Führer# 🦾
+import streamlit as st
 import re, os, json, logging, hashlib, base64
 from datetime import datetime
 
@@ -672,4 +673,4 @@ with t_settings:
     st.markdown("**📦 تصدير البيانات**")
     if st.button("📦 تصدير النسخة الاحتياطية", use_container_width=True):
         export = {"memory": st.session_state.memory, "law_db": st.session_state.law_db, "exported_at": datetime.now().isoformat()}
-        st.download_button("⬇️ تحميل", json.dumps(export, ensure_ascii=False, indent=2).encode("utf-8"), "backup.json", "application/json")
+        st.download_button("⬇️ تحميل", json.dumps(export, ensure_ascii=False, indent=2).encode("utf-8"), "backup.json", "application/json") 
