@@ -41,81 +41,82 @@ st.set_page_config(
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap');
+
 * {
     box-sizing: border-box;
     font-family: 'Cairo', sans-serif;
     direction: rtl;
 }
+
 html, body, .stApp {
-    background: #f0f2f5;
+    background: #f5f5f5;
 }
-/* زر الهامبرغر */
-.hamburger-btn {
-    position: fixed;
-    top: 12px;
-    right: 12px;
-    z-index: 999;
-    background: #ffffff;
-    border: 1px solid #d0d4da;
-    border-radius: 8px;
-    padding: 6px 12px;
-    font-size: 1.8rem;
-    line-height: 1;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    cursor: pointer;
-    transition: all 0.2s;
-}
-.hamburger-btn:hover {
-    background: #f5f7fa;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-/* الشريط الجانبي */
+
+/* ============================
+   الشريط الجانبي (الهامبرغر)
+   ============================ */
 [data-testid="stSidebar"] {
     background: #ffffff !important;
-    border-left: 1px solid #d0d4da;
-    box-shadow: -4px 0 20px rgba(0,0,0,0.08);
-    padding-top: 1rem;
-    min-width: 320px !important;
-    max-width: 400px !important;
+    border-left: 1px solid #d0d0d0;
+    box-shadow: -2px 0 10px rgba(0,0,0,0.05);
+    padding: 1.5rem 1rem !important;
+    min-width: 280px !important;
 }
 [data-testid="stSidebar"] * {
-    color: #1a1a2e !important;
+    color: #1a1a1a !important;
+    font-size: 14px !important;
 }
-/* رأس الصفحة */
+[data-testid="stSidebar"] h1, h2, h3 {
+    font-size: 18px !important;
+    font-weight: 700;
+}
+[data-testid="stSidebar"] .stButton button {
+    background: #e0e0e0 !important;
+    color: #1a1a1a !important;
+    border: 1px solid #cccccc !important;
+    border-radius: 4px !important;
+}
+[data-testid="stSidebar"] .stButton button:hover {
+    background: #d0d0d0 !important;
+}
+
+/* ============================
+   رأس الصفحة (Header)
+   ============================ */
 .hdr {
-    background: linear-gradient(135deg, #ffffff, #f5f7fa);
-    border: 1.5px solid #d0d4da;
-    border-bottom: 3px solid #d4a820;
-    border-radius: 8px;
+    background: #ffffff;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
     padding: 12px 16px;
     margin-bottom: 14px;
-    direction: rtl;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 .hdr h1 {
     font-size: 20px !important;
-    color: #1a1a2e !important;
+    color: #1a1a1a !important;
     font-weight: 700;
     margin: 0;
 }
 .hdr p {
     font-size: 12px !important;
-    color: #6a6a8a;
+    color: #666666;
     margin: 3px 0 0;
 }
-/* لوحة المؤشرات */
+
+/* ============================
+   لوحة المؤشرات (Metrics)
+   ============================ */
 .metrics-container {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
     justify-content: space-around;
     background: #ffffff;
-    border: 1px solid #d0d4da;
-    border-radius: 10px;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
     padding: 12px 10px;
     margin-bottom: 14px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    direction: rtl;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 .metric-item {
     text-align: center;
@@ -124,123 +125,169 @@ html, body, .stApp {
 }
 .metric-item .label {
     font-size: 12px !important;
-    color: #6a6a8a;
+    color: #666666;
     font-weight: 600;
 }
 .metric-item .value {
     font-size: 24px !important;
     font-weight: 700;
     margin-top: 2px;
+    color: #1a1a1a !important;
 }
-.metric-item .value.green { color: #2e7d32; }
-.metric-item .value.red { color: #c62828; }
-.metric-item .value.orange { color: #e65100; }
 .metric-item .sub {
     font-size: 10px !important;
-    color: #9a9aaa;
+    color: #999999;
 }
-/* التبويبات */
+
+/* ============================
+   التبويبات (Tabs)
+   ============================ */
 .stTabs [data-baseweb="tab-list"] {
-    background: #e0e3e8;
-    border-bottom: 2px solid #c0c5cc;
-    gap: 3px;
+    background: #e8e8e8;
+    border-bottom: 1px solid #d0d0d0;
+    gap: 2px;
     padding: 4px;
-    border-radius: 8px 8px 0 0;
+    border-radius: 6px 6px 0 0;
     flex-wrap: wrap;
 }
 .stTabs [data-baseweb="tab"] {
     background: transparent !important;
-    color: #5a5a7a !important;
+    color: #444444 !important;
     border: 1px solid transparent !important;
-    border-radius: 6px !important;
-    padding: 5px 10px !important;
+    border-radius: 4px !important;
+    padding: 6px 12px !important;
     font-size: 13px !important;
-    font-family: 'Cairo', sans-serif;
+    font-weight: 400;
     white-space: nowrap;
 }
 .stTabs [data-baseweb="tab"][aria-selected="true"] {
     background: #ffffff !important;
-    color: #1a1a2e !important;
-    border-color: #a0a8b5 !important;
-    font-weight: 700;
+    color: #1a1a1a !important;
+    border-color: #d0d0d0 !important;
+    font-weight: 600;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
 .stTabs [data-baseweb="tab-panel"] {
     background: #ffffff;
-    border: 1px solid #d0d4da;
-    border-radius: 0 0 8px 8px;
-    padding: 14px;
+    border: 1px solid #d0d0d0;
+    border-radius: 0 0 6px 6px;
+    padding: 16px;
 }
-/* المحادثة */
+
+/* ============================
+   الأزرار
+   ============================ */
+.stButton button {
+    background: #e8e8e8 !important;
+    color: #1a1a1a !important;
+    border: 1px solid #cccccc !important;
+    border-radius: 4px !important;
+    font-weight: 600 !important;
+    padding: 8px 16px !important;
+    transition: background 0.2s;
+}
+.stButton button:hover {
+    background: #d5d5d5 !important;
+    border-color: #aaaaaa !important;
+}
+
+/* ============================
+   المدخلات (Inputs)
+   ============================ */
+.stTextInput input, .stTextArea textarea, .stSelectbox select {
+    background: #fafafa !important;
+    color: #1a1a1a !important;
+    border: 1px solid #d0d0d0 !important;
+    border-radius: 4px !important;
+    font-size: 14px !important;
+}
+.stTextInput input:focus, .stTextArea textarea:focus {
+    border-color: #888888 !important;
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.05) !important;
+}
+
+/* ============================
+   بطاقات النتائج
+   ============================ */
+.result-card {
+    background: #f8f8f8;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin: 6px 0;
+}
+.result-card .success { color: #1a1a1a; }
+.result-card .danger { color: #1a1a1a; }
+
+/* ============================
+   المحادثة
+   ============================ */
 .chat-user {
-    background: #e8f0fe;
-    border: 1px solid #c0d0f0;
+    background: #e8e8e8;
+    border: 1px solid #d0d0d0;
     border-radius: 12px 12px 2px 12px;
     padding: 10px 14px;
     margin: 6px 0;
     max-width: 82%;
     float: right;
     clear: both;
-    direction: rtl;
+    color: #1a1a1a;
+    font-size: 14px;
 }
 .chat-ai {
     background: #ffffff;
-    border: 1px solid #d0d4da;
+    border: 1px solid #d0d0d0;
     border-radius: 12px 12px 12px 2px;
     padding: 10px 14px;
     margin: 6px 0;
     max-width: 88%;
     float: left;
     clear: both;
-    direction: rtl;
-    border-right: 4px solid #d4a820;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    border-right: 3px solid #888888;
+    color: #1a1a1a;
+    font-size: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 .chat-wrap { overflow: hidden; min-height: 60px; }
-/* أزرار */
-.stButton>button {
-    background: linear-gradient(135deg, #d4a820, #f0c040) !important;
-    color: #000000 !important;
-    border: none !important;
-    border-radius: 6px !important;
-    font-weight: 700 !important;
-    padding: 8px 14px !important;
-    transition: all .2s !important;
-}
-.stButton>button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(212,168,32,0.4) !important;
-}
-/* بطاقات */
-.result-card {
-    background: #f8f9fa;
-    border: 1px solid #e0e3e8;
-    border-radius: 8px;
-    padding: 12px 16px;
-    margin: 6px 0;
-    direction: rtl;
-}
+
+/* ============================
+   بطاقات المعلومات
+   ============================ */
 .badge {
     display: inline-block;
-    background: #e8f0fe;
-    border: 1px solid #a0b8f0;
-    color: #1a3a8f;
-    border-radius: 4px;
+    background: #e8e8e8;
+    border: 1px solid #d0d0d0;
+    color: #1a1a1a;
+    border-radius: 3px;
     padding: 2px 8px;
     font-size: 11px;
     font-weight: 600;
     margin: 2px;
 }
-/* شاشات صغيرة */
+
+/* ============================
+   صندوق الملفات
+   ============================ */
+[data-testid="stFileUploader"] {
+    background: #fafafa !important;
+    border: 1px dashed #cccccc !important;
+    border-radius: 4px !important;
+}
+
+/* ============================
+   شاشات صغيرة
+   ============================ */
 @media (max-width: 768px) {
     .hdr h1 { font-size: 17px !important; }
     .metric-item .value { font-size: 20px !important; }
     .stTabs [data-baseweb="tab"] { font-size: 11px !important; padding: 4px 8px !important; }
-    [data-testid="stSidebar"] { min-width: 260px !important; }
+    [data-testid="stSidebar"] { min-width: 240px !important; }
 }
 @media (max-width: 480px) {
     .hdr h1 { font-size: 15px !important; }
     .metric-item .value { font-size: 17px !important; }
     .stTabs [data-baseweb="tab"] { font-size: 10px !important; padding: 3px 6px !important; }
+    .hdr p { font-size: 10px !important; }
 }
 </style>
 """, unsafe_allow_html=True)
