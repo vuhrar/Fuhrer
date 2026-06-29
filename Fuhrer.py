@@ -18,7 +18,6 @@ from rules_engine import RULES, apply_rules
 from ai_client import AIClient
 import config
 from labor_law_rag import LaborLawRAG
-from labor_translator import LaborTranslator
 
 try:
     from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -44,7 +43,7 @@ logger = logging.getLogger("fuehrer")
 
 st.set_page_config(
     page_title="Führer",
-    page_icon="⚖️",
+    page_icon="🦾",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -56,7 +55,7 @@ st.markdown("""
 @font-face {
     font-family: 'Waltograph';
     src: url('https://cdn.jsdelivr.net/npm/font-waltograph@1.0.0/Waltograph.woff2') format('woff2');
-    font-weight: 400;
+    font-weight: 900;
     font-style: normal;
 }
 
@@ -498,11 +497,8 @@ def _init():
 _init()
 if "rag_engine" not in st.session_state:
     st.session_state.rag_engine = LaborLawRAG()
-if "translator" not in st.session_state:
-    st.session_state.translator = LaborTranslator()
 try:
     from labor_law_rag import LaborLawRAG
-    from labor_translator import LaborTranslator
     RAG_AVAILABLE = True
 except ImportError:
     RAG_AVAILABLE = False
