@@ -494,6 +494,10 @@ def _init():
         with open(BG_FILE, "r") as f:
             st.session_state.bg_b64 = f.read().strip()
 _init()
+if "rag_engine" not in st.session_state:
+    st.session_state.rag_engine = LaborLawRAG()
+if "translator" not in st.session_state:
+    st.session_state.translator = LaborTranslator()
 
 if st.session_state.bg_b64:
     st.markdown(f"""
@@ -697,18 +701,35 @@ with t_ai:
         user_inp = st.text_area("اكتب سؤالك هنا", value=st.session_state.pending_q, height=100, placeholder="مثال: ما هي مكافأة نهاية الخدمة؟")
         col1, col2 = st.columns([3, 1])
         with col1:
-            if st.button("إرسال", use_container_width=True) and user_inp.strip():
-                st.session_state.pending_q = ""
-                ts = datetime.now().strftime("%H:%M")
-                st.session_state.current_msgs.append({"role": "user", "content": user_inp, "ts": ts})
-                with st.spinner("⚖️ يبحث في القوانين..."):
-                    resp = call_ai(user_inp)
-                st.session_state.current_msgs.append({"role": "assistant", "content": resp, "ts": ts})
-                sess["messages"] = st.session_state.current_msgs
-                save_session(st.session_state.current_sid, sess)
-                if len(resp) > 80 and "❌" not in resp:
-                    mem_add(f"س: {user_inp[:80]} | ج: {resp[:150]}...", tags=["محادثة", st.session_state.case_type], cat="محادثة")
-                st.rerun()
+           if st.button("إرسال", use_container_width=True) and user_inp.strip():
+    st.session_state.pending_q = ""
+    ts = datetime.now().strftime("%H:%M")
+    st.session_state.current_msgs.append({"role": "user", "content": user_inp, "ts": ts})
+    
+    # البحث الدلالي في نظام العمل
+    results = st.session_state.rag_engine.search(user_inp, top_k=3)
+    context = "\n".join([doc for doc, meta in results])
+    
+    # ترجمة السياق إلى الإنجليزية (اختياري)
+    if any('\u0600' <= c <= '\u06ff' for c in user_inp):
+        context_en = st.session_state.translator.translate(context)
+    else:
+        context_en = context
+    
+    # توليد الإجابة مع السياق
+    if context_en:
+        full_prompt = f"السياق القانوني:\n{context_en}\n\nالسؤال: {user_inp}\n\nالإجابة:"
+    else:
+        full_prompt = user_inp
+    
+    with st.spinner("⚖️ يبحث في القوانين..."):
+        resp = call_ai(full_prompt)
+    st.session_state.current_msgs.append({"role": "assistant", "content": resp, "ts": ts})
+    sess["messages"] = st.session_state.current_msgs
+    save_session(st.session_state.current_sid, sess)
+    if len(resp) > 80 and "❌" not in resp:
+        mem_add(f"س: {user_inp[:80]} | ج: {resp[:150]}...", tags=["محادثة", st.session_state.case_type], cat="محادثة")
+    st.rerun()
         with col2:
             if st.button("مسح", use_container_width=True):
                 st.session_state.current_msgs = []
@@ -769,6 +790,15 @@ with t_files:
                         with st.spinner("جاري فهرسة القوانين في RAG..."):
                             count = index_law_db()
                             st.success(f"✅ تم فهرسة {count} جزء في قاعدة المتجهات")
+                         with t_files:
+    # ... الكود الموجود ...
+    # أضف هذا الكود في نهاية التبويب (قبل إغلاق with t_files)
+    if st.button("فهرسة PDF كنظام عمل", use_container_width=True):
+        for f in uploaded:
+            if f.name.endswith('.pdf'):
+                articles = st.session_state.rag_engine.parse_pdf(_bytes(f))
+                count = st.session_state.rag_engine.index_articles(articles)
+                st.success(f"تم فهرسة {count} مادة من {f.name}")# 
             with col3:
                 if RAG_AVAILABLE and st.session_state.law_db:
                     if st.button("🧠 فهرسة RAG", use_container_width=True):
