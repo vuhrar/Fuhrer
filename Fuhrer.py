@@ -804,7 +804,7 @@ st.session_state.uploaded_texts = texts
 st.success("✅ تم التحليل، انتقل إلى 'المحادثة' لطرح الأسئلة")
 with col2:
  if st.button("استخراج القوانين", use_container_width=True):
-total = 0
+    total = 0
 for f in uploaded:
                         raw = _bytes(f)
                         ext = (f.name or "").rsplit(".", 1)[-1].lower()
