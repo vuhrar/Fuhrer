@@ -761,29 +761,29 @@ sess["messages"] = st.session_state.current_msgs
 save_session(st.session_state.current_sid, sess)
 if len(resp) > 80 and "❌" not in resp:
         mem_add(f"س: {user_inp[:80]} | ج: {resp[:150]}...", tags=["محادثة", st.session_state.case_type], cat="محادثة")
-    st.rerun()
+st.rerun()
 with col2:
 if st.button("مسح", use_container_width=True):
         st.session_state.current_msgs = []
         sess["messages"] = []
 save_session(st.session_state.current_sid, sess)
-                st.rerun()
+st.rerun()
 
 with t_files:
-    st.subheader("الملفات")
-    uploaded = st.file_uploader("اختر الملفات (PDF, DOCX, TXT, JSON)", type=["pdf", "docx", "txt", "json"], accept_multiple_files=True, label_visibility="collapsed")
-    if uploaded:
-        st.info(f"تم رفع {len(uploaded)} ملف")
+st.subheader("الملفات")
+uploaded = st.file_uploader("اختر الملفات (PDF, DOCX, TXT, JSON)", type=["pdf", "docx", "txt", "json"], accept_multiple_files=True, label_visibility="collapsed")
+if uploaded:
+st.info(f"تم رفع {len(uploaded)} ملف")
         di = DocIntel()
         texts = []
-        for f in uploaded:
-            with st.expander(f"📄 {f.name}"):
-                txt = di.extract(f)
-                if txt:
-                    texts.append(txt)
-                    st.text_area("النص المستخرج", txt[:500] + ("..." if len(txt) > 500 else ""), height=150)
-                    ents = di.entities(txt)
-                    if ents.get("articles"):
+for f in uploaded:
+with st.expander(f"📄 {f.name}"):
+    txt = di.extract(f)
+if txt:
+    texts.append(txt)
+st.text_area("النص المستخرج", txt[:500] + ("..." if len(txt) > 500 else ""), height=150)
+ents = di.entities(txt)
+if ents.get("articles"):
                         st.markdown("**المواد:** " + "".join(f'<span class="badge">{a}</span>' for a in ents["articles"][:6]), unsafe_allow_html=True)
                     if ents.get("dates"):
                         st.markdown(f"**تواريخ:** {', '.join(ents['dates'][:5])}")
