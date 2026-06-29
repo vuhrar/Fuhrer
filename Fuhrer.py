@@ -720,8 +720,7 @@ with col1:
     results = st.session_state.rag_engine.search(user_inp, top_k=3)
     context = "\n".join([doc for doc, meta in results])
     
-
-        context_en = context
+    context_en = context
     
     # توليد الإجابة مع السياق
     if context_en:
