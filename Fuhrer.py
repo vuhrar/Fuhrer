@@ -816,9 +816,8 @@ with t_files:
                         with st.spinner("جاري فهرسة القوانين في RAG..."):
                             count = index_law_db()
                             st.success(f"✅ تم فهرسة {count} جزء في قاعدة المتجهات")
-                         with t_files:
-    # ... الكود الموجود ...
-    # أضف هذا الكود في نهاية التبويب (قبل إغلاق with t_files)
+
+
     if st.button("فهرسة PDF كنظام عمل", use_container_width=True):
         for f in uploaded:
             if f.name.endswith('.pdf'):
