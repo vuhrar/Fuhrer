@@ -502,7 +502,7 @@ try:
     RAG_AVAILABLE = True
 except ImportError:
     RAG_AVAILABLE = False
-    print("⚠️ ملفات RAG غير موجودة. تأكد من وجود labor_law_rag.py و labor_translator.py")
+    print("⚠️ ملفات RAG غير موجودة. تأكد من وجود labor_law_rag.py ")
 
 if st.session_state.bg_b64:
     st.markdown(f"""
@@ -737,9 +737,7 @@ with col1:
     results = st.session_state.rag_engine.search(user_inp, top_k=3)
     context = "\n".join([doc for doc, meta in results])
     
-    # ترجمة السياق إلى الإنجليزية (اختياري)
-    if any('\u0600' <= c <= '\u06ff' for c in user_inp):
-        context_en = st.session_state.translator.translate(context)
+    # ترجمة السياق إلى الإنجليزية (
     else:
         context_en = context
     
