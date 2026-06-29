@@ -823,18 +823,18 @@ if RAG_AVAILABLE and total > 0:
                     count = index_law_db()
 st.success(f"✅ تم فهرسة {count} جزء في قاعدة المتجهات")
 if st.button("فهرسة PDF كنظام عمل", use_container_width=True):
-for f in uploaded:
-if f.name.endswith('.pdf'):
-articles = st.session_state.rag_engine.parse_pdf(_bytes(f))
-count = st.session_state.rag_engine.index_articles(articles)
-st.success(f"تم فهرسة {count} مادة من {f.name}")# 
+    for f in uploaded:
+        if f.name.endswith('.pdf'):
+            articles = st.session_state.rag_engine.parse_pdf(_bytes(f))
+            count = st.session_state.rag_engine.index_articles(articles)
+            st.success(f"تم فهرسة {count} مادة من {f.name}")
+
 with col3:
-if RAG_AVAILABLE and st.session_state.law_db:
-if st.button("🧠 فهرسة RAG", use_container_width=True):
-with st.spinner("جاري فهرسة القوانين..."):
-count = index_law_db()
-st.success(f"✅ تم فهرسة {count} جزء")
-with t_audit:
+    if RAG_AVAILABLE and st.session_state.law_db:
+        if st.button("🧠 فهرسة RAG", use_container_width=True):
+            with st.spinner("جاري فهرسة القوانين..."):
+                count = index_law_db()
+                st.success(f"✅ تم فهرسة {count} جزء"):
 st.subheader("التدقيق الإداري والقانوني")
     text_input = st.text_area("الصق النص هنا", height=200, placeholder="مثال: تم فصل الموظف محمد بدون تحقيق...")
     if st.button("تدقيق", use_container_width=True) and text_input.strip():
