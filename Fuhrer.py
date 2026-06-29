@@ -816,7 +816,7 @@ for f in uploaded:
                             records = extract_laws_from_text(raw.decode("utf-8", errors="ignore"), f.name)
                         st.session_state.law_db.extend(records)
                         total += len(records)
-                    save_json(LAW_FILE, st.session_state.law_db)
+save_json(LAW_FILE, st.session_state.law_db)
                     st.success(f"✅ تم استخراج {total} مادة قانونية")
                     if RAG_AVAILABLE and total > 0:
                         with st.spinner("جاري فهرسة القوانين في RAG..."):
