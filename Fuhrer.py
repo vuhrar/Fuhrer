@@ -737,9 +737,9 @@ with col2:
         save_session(st.session_state.current_sid, sess)
         st.rerun()
     # توليد الإجابة مع السياق
-    if context_en:
+     if context_en:
         full_prompt = f"السياق القانوني:\n{context_en}\n\nالسؤال: {user_inp}\n\nالإجابة:"
-    else:
+     else:
         full_prompt = user_inp
     
     with st.spinner("⚖️ يبحث في القوانين..."):
