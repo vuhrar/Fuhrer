@@ -776,7 +776,7 @@ if uploaded:
 di = DocIntel()
 texts = []
 for f in uploaded:
-with st.expander(f"📄 {f.name}"):
+ with st.expander(f"📄 {f.name}"):
     txt = di.extract(f)
 if txt:
     texts.append(txt)
