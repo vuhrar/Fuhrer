@@ -824,7 +824,7 @@ if RAG_AVAILABLE and total > 0:
 st.success(f"✅ تم فهرسة {count} جزء في قاعدة المتجهات")
 if st.button("فهرسة PDF كنظام عمل", use_container_width=True):
     for f in uploaded:
- if f.name.endswith('.pdf'):
+if f.name.endswith('.pdf'):
 articles = st.session_state.rag_engine.parse_pdf(_bytes(f))
 count = st.session_state.rag_engine.index_articles(articles)
 st.success(f"تم فهرسة {count} مادة من {f.name}")# 
