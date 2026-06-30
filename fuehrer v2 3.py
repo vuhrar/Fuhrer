@@ -1,7 +1,4 @@
-# fuehrer_v2.py — النسخة الثانية الكاملة
-# شخصيتان: المحامي ⚖️ والمستشار العمالي 🧑‍💼
-# اتصال مباشر مضمون بكل نماذج الذكاء
-
+#Führer🦾
 import streamlit as st
 import json, re, os, hashlib, base64, logging, urllib.request, urllib.error
 from datetime import datetime
@@ -14,8 +11,8 @@ logger = logging.getLogger("fuehrer_v2")
 # إعدادات الصفحة
 # ══════════════════════════════════════════════
 st.set_page_config(
-    page_title="Führer v2",
-    page_icon="⚖️",
+    page_title="Führer ",
+    page_icon="🦾",
     layout="wide",
     initial_sidebar_state="expanded",
 )
