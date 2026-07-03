@@ -35,7 +35,7 @@ from legal_database import get_legal_database
 
 # تهيئة الصفحة
 st.set_page_config(
-   import streamlit as st
+import streamlit as st
 import os
 from ai_engine import HuggingFaceEngine, GroqEngine
 from storage import SupabaseStorage
