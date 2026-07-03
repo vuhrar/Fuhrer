@@ -35,11 +35,90 @@ from legal_database import get_legal_database
 
 # تهيئة الصفحة
 st.set_page_config(
-    page_title="Führer",
-    page_icon="⚖️",
-    layout="centered",
-    initial_sidebar_state="collapsed"
-)
+   import streamlit as st
+import os
+from ai_engine import HuggingFaceEngine, GroqEngine
+from storage import SupabaseStorage
+
+# --- 1. إعداد sidebar مع مؤشرات الاتصال ---
+st.sidebar.markdown("## ⚙️ **إعدادات API**")
+st.sidebar.markdown("---")
+
+# --- 2. حقل إدخال API Keys (إذا لم تكن في .env) ---
+api_keys = {
+    "Hugging Face": st.sidebar.text_input("🤗 Hugging Face Token", type="password", key="hf_token",
+                                       value=os.getenv("HUGGINGFACE_TOKEN", "")),
+    "Groq": st.sidebar.text_input("⚡ Groq API Key", type="password", key="groq_token",
+                                 value=os.getenv("GROQ_API_KEY", "")),
+    "Supabase URL": st.sidebar.text_input("🗄️ Supabase URL", key="supabase_url",
+                                       value=os.getenv("SUPABASE_URL", "")),
+    "Supabase Key": st.sidebar.text_input("🔑 Supabase Key", type="password", key="supabase_key",
+                                       value=os.getenv("SUPABASE_KEY", ""))
+}
+
+# --- 3. زر اختبار الاتصال + مؤشرات الحالة ---
+if st.sidebar.button("🔍 **اختبار الاتصال**", use_container_width=True):
+    with st.spinner("جاري اختبار اتصالات API..."):
+        results = {}
+
+        # اختبار Hugging Face
+        if api_keys["Hugging Face"]:
+            try:
+                hf = HuggingFaceEngine(api_token=api_keys["Hugging Face"])
+                test = hf.generate("اختبار", max_tokens=5)
+                results["Hugging Face"] = {"status": "✅ متصل", "color": "green", "error": None}
+            except Exception as e:
+                results["Hugging Face"] = {"status": f"❌ خطأ {str(e)[:30]}", "color": "red", "error": str(e)}
+        else:
+            results["Hugging Face"] = {"status": "⚠️ مفقود", "color": "orange", "error": "API Key مفقود"}
+
+        # اختبار Groq
+        if api_keys["Groq"]:
+            try:
+                groq = GroqEngine(api_key=api_keys["Groq"])
+                test = groq.generate("اختبار", max_tokens=5)
+                results["Groq"] = {"status": "✅ متصل", "color": "green", "error": None}
+            except Exception as e:
+                results["Groq"] = {"status": f"❌ خطأ {str(e)[:30]}", "color": "red", "error": str(e)}
+        else:
+            results["Groq"] = {"status": "⚠️ مفقود", "color": "orange", "error": "API Key مفقود"}
+
+        # اختبار Supabase
+        if api_keys["Supabase URL"] and api_keys["Supabase Key"]:
+            try:
+                supabase = SupabaseStorage(
+                    url=api_keys["Supabase URL"],
+                    key=api_keys["Supabase Key"]
+                )
+                test = supabase.list_files()
+                results["Supabase"] = {"status": "✅ متصل", "color": "green", "error": None}
+            except Exception as e:
+                results["Supabase"] = {"status": f"❌ خطأ {str(e)[:30]}", "color": "red", "error": str(e)}
+        else:
+            results["Supabase"] = {"status": "⚠️ مفقود", "color": "orange", "error": "URL/Key مفقود"}
+
+        # --- 4. عرض النتائج في sidebar (بدون ظهور في chat) ---
+        st.sidebar.markdown("### 📡 **حالة الاتصال**")
+        for service, result in results.items():
+            st.sidebar.markdown(
+                f"**{service}**: <span style='color:{result['color']}'>{result['status']}</span>",
+                unsafe_allow_html=True
+            )
+            if result["error"] and st.sidebar.button(f"🔴 تفاصيل خطأ {service}", key=f"err_{service}"):
+                st.sidebar.error(result["error"])
+
+        # --- 5. حفظ المفاتيح في session state لاستخدامها لاحقاً ---
+        st.session_state.api_keys = api_keys
+        st.session_state.api_status = results
+else:
+    # عرض آخر حالة إذا لم يتم الضغط على الزر
+    if "api_status" in st.session_state:
+        st.sidebar.markdown("### 📡 **حالة الاتصال**")
+        for service, result in st.session_state.api_status.items():
+            st.sidebar.markdown(
+                f"**{service}**: <span style='color:{result['color']}'>{result['status']}</span>",
+                unsafe_allow_html=True
+            ))
 
 # CSS - ثيم داكن عربي
 st.markdown("""
