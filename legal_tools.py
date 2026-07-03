@@ -1,103 +1,104 @@
-# legal_tools.py
-"""
-الأدوات القانونية المتخصصة بنظام العمل السعودي.
-"""
+# legal_tools.py - Legal Tools Module for Fuhrer App
 
-from typing import List, Dict, Tuple, Optional
-import re
-from datetime import datetime
+from typing import Dict, List, Callable, Optional
+import streamlit as st
+from legal_database import get_legal_database
 
-TOOLS = {
-    "lawyer": [
-        ("📝", "صياغة دعوى قانونية", "draft_lawsuit"),
-        ("🛡️", "توليد دفاع قانوني", "generate_defense"),
-        ("🔍", "تدقيق إشعارات الفصل", "audit_dismissal"),
-        ("📧", "فحص المراسلات", "email_scan"),
-        ("📚", "البحث في الأنظمة", "law_search"),
-        ("⚡", "استخراج حجج نضاد", "counter_args"),
-        ("💰", "حاسبة استحقاقات", "calculator"),
-        ("📊", "تحليل 18 محور", "full_analysis"),
+# ======================
+# PERSONA TOOLS MAPPING
+# ======================
+
+PERSONA_TOOLS = {
+    "worker": [
+        {"name": "تحليل عقد العمل", "func": "analyze_contract", "icon": "📄", "description": "تحليل عقود العمل حسب نظام العمل السعودي"},
+        {"name": "حساب نهاية الخدمة", "func": "calculate_end_of_service", "icon": "💰", "description": "حساب مستحقات نهاية الخدمة"},
+        {"name": "بحث قانوني", "func": "legal_search", "icon": "🔍", "description": "بحث في مواد نظام العمل"},
+        {"name": "توليد مرافعة", "func": "generate_pleading", "icon": "⚖️", "description": "توليد مرافعات قانونية"},
+        {"name": "كشف الغش في المراسلات", "func": "detect_deception", "icon": "🕵️", "description": "كشف التزوير أو الغش في الرسائل"},
     ],
-    "advisor": [
-        ("🧮", "حاسبة استحقاقات", "calculator"),
-        ("📊", "تقييم قوة القضية", "case_strength"),
-        ("📧", "فحص المراسلات", "email_scan"),
-        ("📚", "البحث في الأنظمة", "law_search"),
-        ("📁", "تحليل المستندات", "doc_analysis"),
-        ("🤝", "تقييم خيارات التسوية", "settlement"),
-        ("⏳", "متابعة المواعيد", "deadlines"),
-        ("📈", "تحليل 18 محور", "full_analysis"),
+    "employer": [
+        {"name": "إنشاء عقد عمل", "func": "create_contract", "icon": "📝", "description": "إنشاء عقود عمل متوافقة مع النظام"},
+        {"name": "حساب نهاية الخدمة", "func": "calculate_end_of_service", "icon": "💰", "description": "حساب مستحقات نهاية الخدمة للموظفين"},
+        {"name": "بحث قانوني", "func": "legal_search", "icon": "🔍", "description": "بحث في مواد نظام العمل"},
+        {"name": "تصنيف قضايا", "func": "classify_case", "icon": "🏷️", "description": "تصنيف القضايا القانونية تلقائياً"},
+        {"name": "تتبع المواعيد", "func": "track_deadlines", "icon": "⏰", "description": "تتبع مواعيد تقديم الدعاوي"},
+    ],
+    "lawyer": [
+        {"name": "بحث قانوني متقدم", "func": "legal_search", "icon": "🔍", "description": "بحث متقدم في مواد النظام"},
+        {"name": "تحليل قضية", "func": "analyze_case", "icon": "📊", "description": "تحليل القضايا على 18 محوراً قانونياً"},
+        {"name": "توليد مرافعة", "func": "generate_pleading", "icon": "⚖️", "description": "توليد مرافعات قانونية متقدمة"},
+        {"name": "تصنيف قضايا", "func": "classify_case", "icon": "🏷️", "description": "تصنيف القضايا تلقائياً"},
+        {"name": "كشف الغش", "func": "detect_deception", "icon": "🕵️", "description": "كشف التزوير في الوثائق"},
+        {"name": "حساب تعويضات", "func": "calculate_compensation", "icon": "💸", "description": "حساب التعويضات القانونية"},
+    ],
+    "judge": [
+        {"name": "تحليل قضية كامل", "func": "analyze_case", "icon": "⚖️", "description": "تحليل شامل للقضايا على 18 محوراً"},
+        {"name": "بحث قانوني", "func": "legal_search", "icon": "🔍", "description": "بحث في مواد النظام"},
+        {"name": "تصنيف قضايا", "func": "classify_case", "icon": "🏷️", "description": "تصنيف القضايا تلقائياً"},
+        {"name": "توليد أحكام", "func": "generate_verdict", "icon": "📜", "description": "مساعدة في صياغة الأحكام"},
+        {"name": "مراجعة مرافعات", "func": "review_pleading", "icon": "🔎", "description": "مراجعة المرافعات القانونية"},
     ]
 }
 
-PERSONA_PROMPTS = {
-    "lawyer": """أنت محامي سعودي خبير بالقانون العمالي، ولديك 20 عاماً من الخبرة.
-نهجتك: هجومي، يكتب الدعاوى والحجج.
-مهامتك: صياغة الدعاوى القانونية بدقة، توليد حجج دفاعية قوية، تدقيق إشعارات الفصل، كشـف الزلات القانونية، استخراج الحجج النضادية.
-الإطار القانوني: نظام العمل السعودي، لائحة التنفيذ، قرارات وزارة العمل، السوابق القضائية.
-اللغة: عربية فصحى قانونية حازمة.
-قواعد: 1. جميع المعلومات دقيقة قانونياً 2. الحجة مستندة إلى نصوص قانونية 3. اللغة قانونية رسمية 4. الاستجابات قابلة للتقديم إلى محكمة العمل""",
+# ======================
+# TOOLS FUNCTION
+# ======================
 
-    "advisor": """أنت مستشار قانوني سعودي خبير، ولديك 20 عاماً من الخبرة.
-نهجتك: تحليلي، يحسب المستحقات ويوجه.
-مهامتك: حساب الاستحقاقات المالية بدقة، تقييم قوة القضايا، تحليل المستندات القانونية، تقييم خيارات التسوية، متابعة المواعيد القانونية.
-الإطار القانوني: نظام العمل السعودي، لائحة التنفيذ، قرارات وزارة العمل.
-اللغة: عربية فصحى واضحة ومباشرة.
-قواعد: 1. جميع الحسابات دقيقة 2. التوصيات واقعية 3. المعلومات مستندة إلى نصوص قانونية"""
-}
+def get_tools_for_persona(persona: str) -> List[Dict]:
+    """
+    Get available tools for a specific persona
 
-TOOL_PROMPTS = {
-    "draft_lawsuit": ("📝", "صياغة دعوى قانونية", "اكتب صياغة دعوى عمالية كاملة بناءً على تفاصيل القضية. اذكر الوقائع والمطالبات والمواد القانونية الداعمة."),
-    "generate_defense": ("🛡️", "توليد دفاع قانوني", "قم بتوليد دفاع قانوني مفصل عن الادعاء المقدم. يجب أن يكون الدفاع مستنداً إلى نصوص قانونية حقيقية."),
-    "audit_dismissal": ("🔍", "تدقيق إشعارات الفصل", "دقق في إشعار الفصل: هل سبقته التحقيقات اللازمة؟ هل تم إتباع الإجراءات القانونية؟"),
-    "counter_args": ("⚡", "استخراج حجج نضاد", "استخرج جميع الحجج النضادية ضد نضـف صاحب العمل. كن صريحاً ونفصـلاً."),
-    "case_strength": ("📊", "تقييم قوة القضية", "قّم قوة القضية من 1-10، مع شرح تفصيلي للنقاط القوية والضعيفة."),
-    "settlement": ("🤝", "تقييم خيارات التسوية", "قّم خيارات التسوية المتاحة، مع شرح للمزايا والعيوب لكل خيار."),
-    "law_search": ("📚", "البحث في الأنظمة", "ابحث عن المواد القانونية ذات الصلة بالقضية. اذكر رقم المادة ونصها."),
-    "email_scan": ("📧", "فحص المراسلات", "افحص هذه المراسلة بحثاً عن أي زلات قانونية. اذكر نوع الزلة والمادة القانونية ذات الصلة."),
-}
+    Args:
+        persona: One of ['worker', 'employer', 'lawyer', 'judge']
 
-def calculate_eosb(basic: float, total: float, years: float, arbitrary: bool, delay_months: int) -> Dict:
-    y5 = min(years, 5)
-    y_plus = max(0, years - 5)
-    eosb = (basic / 2) * y5 + basic * y_plus
-    arb = (total * min(12, max(3, int(years)))) if arbitrary else 0
-    delay = total * 0.05 * delay_months if delay_months > 0 else 0
-    grand = eosb + arb + delay
+    Returns:
+        List of tool dictionaries with name, func, icon, description
+    """
+    return PERSONA_TOOLS.get(persona, [])
+
+def get_all_personas() -> List[str]:
+    """Get list of all available personas"""
+    return list(PERSONA_TOOLS.keys())
+
+# ======================
+# BASIC LEGAL TOOLS
+# ======================
+
+def analyze_contract(contract_text: str) -> Dict:
+    """Analyze a contract against Saudi labor law"""
+    db = get_legal_database()
+    # Basic implementation - will be enhanced in legal_tools_advanced.py
     return {
-        "eosb": round(eosb, 2), "arbitrary": round(arb, 2), "delay": round(delay, 2),
-        "grand": round(grand, 2),
-        "details": [
-            f"نكافة نهاية الخدمة (م.84): {eosb:,.2f} ريال",
-            f"تعويض الفصل التعسفي (م.77): {arb:,.2f} ريال" if arbitrary else "",
-            f"تعويض تأخير الراتب (م.90): {delay:,.2f} ريال" if delay_months > 0 else "",
-        ]
+        "status": "success",
+        "analysis": "تحليل أولي للعقد",
+        "issues": [],
+        "recommendations": ["راجع المواد 40-42 لنظام العمل بشأن ساعات العمل"]
     }
 
-SLIP_PATTERNS = [
-    (r"(أكرهنا|أجبرنا|إكراه|ضغط|تهديد)", "إكراه على الاستقالة", "danger", "مادة 77"),
-    (r"(لَا|لَمْ|مَا)\s+(نَعْتَرِف|نعرف|نقر)", "رفض الاعتراف بحقوق العامل", "danger", "مادة 84"),
-    (r"(بدون|دون|لَا|لَمْ)\s+(تحقيق|تحقي|نظرة)", "فصل بدون تحقيق", "danger", "مادة 77"),
-    (r"(خطأ|خطئا|أخطاء)\s+(من|في)\s+(الجهة|صاحب العمل)", "إقرار بخطأ من صاحب العمل", "danger", "مادة 77"),
-    (r"(حرمان|محروم|حرمنا)\s+(من|عن)\s+(الأجر|راتب|مستحقات)", "حرمان من مستحقات", "danger", "مادة 90"),
-    (r"(لَا|لَمْ|مَا)\s+(يَسْتَحِق|يستحق|يحق)", "رفض استحقاق قانوني", "warn", "مادة 84"),
-    (r"(تأخير|تأخير)\s+(في|ب|ل)\s+(دفع|سداد|صرف)\s+(الراتب|الأجر)", "تأخير في دفع الأجر", "warn", "مادة 90"),
-    (r"(تاريخ|موعد|انتهاء)\s+(نهاية|انتهاء)\s+(العقد|الخدمة)", "تاريخ نهاية العقد", "warn", "مادة 78"),
-    (r"(نقل|نقلنا|نقلتم)\s+(تعسفي|قسر|إجباري)", "نقل تعسفي", "warn", "مادة 77"),
-    (r"(خصم|خصمنا|خصمتم)\s+(من|عن)\s+(راتب|أجر)", "خصم من الأجر", "warn", "مادة 91"),
-]
+def calculate_end_of_service(years: float, last_salary: float, reason: str = "استقالة") -> Dict:
+    """Calculate end of service benefits"""
+    # Basic calculation
+    if years < 2:
+        return {"error": "لا يستحق العامل علاوة نهاية الخدمة إذا كانت مدة العمل أقل من عامين"}
 
-def scan_for_slips(text: str) -> List[Dict]:
-    findings = []
-    for pattern, msg, level, article in SLIP_PATTERNS:
-        matches = re.findall(pattern, text, re.IGNORECASE | re.DOTALL)
-        if matches:
-            snippet = matches[0] if isinstance(matches[0], str) else " ".join(matches[0])
-            findings.append({"msg": msg, "level": level, "snippet": snippet[:120].strip(), "article": article})
-    return findings
+    if reason == "استقالة":
+        days = years * 15 if years <= 5 else (5 * 15 + (years - 5) * 10)
+    else:  # فصل تعسفي
+        days = years * 15 if years <= 5 else (5 * 15 + (years - 5) * 20)
 
-def extract_quick_facts(text: str) -> Dict[str, List[str]]:
-    dates = list(set(re.findall(r'\d{1,2}/\d{1,2}/\d{2,4}', text)))[:6]
-    amounts = list(set(re.findall(r'[\d,]+(?:\.\d+)?\s*(?:ريال|SR|ر\.س|\$)', text)))[:6]
-    arts = list(set(re.findall(r'المادة\s+\d+|م\s*\d+', text)))[:8]
-    return {"dates": dates, "amounts": amounts, "articles": arts}
+    benefit = (last_salary / 30) * days
+    return {
+        "years": years,
+        "last_salary": last_salary,
+        "reason": reason,
+        "benefit_days": days,
+        "benefit_amount": round(benefit, 2),
+        "calculation": f"{days} يوم × ({last_salary}/30) = {round(benefit, 2)} ريال"
+    }
+
+def legal_search(query: str, limit: int = 5) -> List[Dict]:
+    """Search in legal database"""
+    db = get_legal_database()
+    return db.search_articles(query, limit)
+
+# Add more basic tools as needed...
