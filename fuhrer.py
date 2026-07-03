@@ -390,7 +390,10 @@ else:
         tools_list = legal_tools.get_tools_for_persona(persona)
         st.markdown("### اختر أداة:")
         cols = st.columns(2)
-        for i, (icon, name, tool_id) in enumerate(tools_list):
+        for i, tool in enumerate(tools_list):
+    icon = tool["icon"]
+    name = tool["name"]
+    tool_id = tool["func"]  # أو tool["id"] إذا كان موجوداً
             with cols[i % 2]:
                 if st.button(f"{icon} {name}", key=f"tool_{tool_id}", use_container_width=True):
                     st.session_state.selected_tool = tool_id
