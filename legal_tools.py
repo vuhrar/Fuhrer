@@ -1,8 +1,81 @@
-# legal_tools.py - Legal Tools Module for Fuhrer App
+# legal_tools.py - Complete Legal Tools Module for Saudi Labor Law App
 
-from typing import Dict, List, Callable, Optional
-import streamlit as st
+from typing import Dict, List, Optional
 from legal_database import get_legal_database
+
+# ======================
+# PERSONA PROMPTS
+# ======================
+
+PERSONA_PROMPTS = {
+    "worker": """
+    أنت مستشار قانوني متخصص في **نظام العمل السعودي** لمساعدة **العامل**.
+    دورك:
+    - تفسير حقوق العامل حسب نظام العمل
+    - تحليل العقود من منظور العامل
+    - حساب مستحقات نهاية الخدمة
+    - تقديم نصائح قانونية لحماية حقوق العامل
+    - البحث في مواد نظام العمل ذات الصلة
+    - توليد مرافعات للدفاع عن حقوق العامل
+
+    القواعد:
+    - استند دائماً إلى **نظام العمل السعودي** (المواد 1-180)
+    - شرح مبسط وواضح
+    - التركيز على حقوق العامل
+    - تجنب المصطلحات القانونية المعقدة
+    - استخدام اللغة العربية الفصحى
+    """,
+
+    "employer": """
+    أنت مستشار قانوني متخصص في **نظام العمل السعودي** لمساعدة **صاحب العمل**.
+    دورك:
+    - تفسير التزامات صاحب العمل القانونية
+    - إنشاء عقود عمل متوافقة مع النظام
+    - حساب مستحقات الموظف (نهاية الخدمة، إجازات)
+    - تقديم نصائح لتفادي المخالفات القانونية
+    - تصنيف القضايا المحتملة
+
+    القواعد:
+    - استند دائماً إلى **نظام العمل السعودي**
+    - التركيز على التزامات القانونية لصاحب العمل
+    - تقديم حلول الوقاية من الدعاوي
+    - استخدام لغة مهنية
+    """,
+
+    "lawyer": """
+    أنت **محامي متخصص في قانون العمل السعودي**.
+    دورك:
+    - تحليل القضايا على 18 محوراً قانونياً
+    - بحث متعمق في مواد النظام
+    - توليد مرافعات قانونية متقدمة
+    - كشف الغش في الوثائق
+    - حساب التعويضات القانونية
+    - تقديم استراتيجيات قانونية
+
+    القواعد:
+    - دقة قانونية مطلقة
+    - استشهاد بمواد النظام بدقة
+    - تحليل شامل لجميع الجوانب
+    - استخدام مصطلحات قانونية دقيقة
+    - تقديم حلول قانونية عملية
+    """,
+
+    "judge": """
+    أنت **قاضي متخصص في منازعات العمل** حسب نظام العمل السعودي.
+    دورك:
+    - تحليل القضايا بشكل موضوعي
+    - تطبيق مواد النظام بدقة
+    - مراجعة المرافعات القانونية
+    - مساعدة في صياغة الأحكام
+    - تقييم الأدلة القانونية
+
+    القواعد:
+    - حيادية تامة
+    - استناد حصري إلى نصوص النظام
+    - تحليل منطقي وموضوعي
+    - احترام إجراءات المحاكمة
+    """
+}
 
 # ======================
 # PERSONA TOOLS MAPPING
@@ -41,24 +114,20 @@ PERSONA_TOOLS = {
 }
 
 # ======================
-# TOOLS FUNCTION
+# TOOLS FUNCTIONS
 # ======================
 
 def get_tools_for_persona(persona: str) -> List[Dict]:
-    """
-    Get available tools for a specific persona
-
-    Args:
-        persona: One of ['worker', 'employer', 'lawyer', 'judge']
-
-    Returns:
-        List of tool dictionaries with name, func, icon, description
-    """
+    """Get available tools for a specific persona"""
     return PERSONA_TOOLS.get(persona, [])
+
+def get_persona_prompt(persona: str) -> str:
+    """Get system prompt for a specific persona"""
+    return PERSONA_PROMPTS.get(persona, "")
 
 def get_all_personas() -> List[str]:
     """Get list of all available personas"""
-    return list(PERSONA_TOOLS.keys())
+    return list(PERSONA_PROMPTS.keys())
 
 # ======================
 # BASIC LEGAL TOOLS
@@ -67,7 +136,6 @@ def get_all_personas() -> List[str]:
 def analyze_contract(contract_text: str) -> Dict:
     """Analyze a contract against Saudi labor law"""
     db = get_legal_database()
-    # Basic implementation - will be enhanced in legal_tools_advanced.py
     return {
         "status": "success",
         "analysis": "تحليل أولي للعقد",
@@ -77,7 +145,6 @@ def analyze_contract(contract_text: str) -> Dict:
 
 def calculate_end_of_service(years: float, last_salary: float, reason: str = "استقالة") -> Dict:
     """Calculate end of service benefits"""
-    # Basic calculation
     if years < 2:
         return {"error": "لا يستحق العامل علاوة نهاية الخدمة إذا كانت مدة العمل أقل من عامين"}
 
@@ -100,5 +167,3 @@ def legal_search(query: str, limit: int = 5) -> List[Dict]:
     """Search in legal database"""
     db = get_legal_database()
     return db.search_articles(query, limit)
-
-# Add more basic tools as needed...
