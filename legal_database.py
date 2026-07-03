@@ -1,166 +1,365 @@
-# legal_database.py
-"""
-قاعدة بيانات قانون العمل السعودي.
-Contains نصوص المواد القانونية، اللوائح، والقرارات ذات الصلة بالقانون العمالي.
-"""
+# legal_database.py - Saudi Labor Law Database
+# Contains articles, laws, and legal references for Saudi Labor Law
 
-from typing import Dict, List, Optional
+import json
+from typing import Dict, List, Optional, Any
+from pathlib import Path
+import streamlit as st
 
-class SaudiLaborDatabase:
-    """قاعدة بيانات محلية لنصوص قانون العمل السعودي"""
+# ======================
+# DATABASE STRUCTURE
+# ======================
+
+class LegalDatabase:
+    """Main class for Saudi Labor Law database operations"""
 
     def __init__(self):
-        self.laws = {
-            "m1": {
-                "title": "مادة 1 - تعريفات",
-                "text": "يقصد بالألفاظ التالية أينما وردت في هذا النظام المعاني المبينة أمام كل منها:
-وزارة الموارد البشرية والتنمية الاجتماعية.
-المسؤول: الوزير أو من يفوضه.
-العامل: كل شخص طبيعي يعمل لدى صاحب عمل مقابل أجر.
-صاحب العمل: كل شخص طبيعي أو اعتباري يستخدم عاملاً أو أكثر مقابل أجر.
-العمل: كل نشاط بشري (عقلي أو بدني) يقصد منه تحقيق منفعة مادية أو أدبية.",
-                "source": "نظام العمل السعودي",
-                "article": "1",
-                "category": "تعريفات"
+        self.db_path = Path(__file__).parent / "data" / "saudi_labor_law.json"
+        self.articles = self._load_database()
+
+    def _load_database(self) -> Dict:
+        """Load the legal database from JSON file or use default data"""
+        try:
+            if self.db_path.exists():
+                with open(self.db_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+        except Exception as e:
+            st.warning(f"Failed to load database: {e}")
+
+        # Default Saudi Labor Law articles (simplified)
+        return {
+            "labor_law": {
+                "name": "نظام العمل السعودي",
+                "last_updated": "2024-01-01",
+                "articles": {
+                    "1": {
+                        "title": "تعريف النظام",
+                        "content": "نظام العمل هو النظام الذي ينظم علاقات العمل بين صاحب العمل والعامل.",
+                        "category": "تعريفات",
+                        "tags": ["تعريف", "نظام", "عمل"],
+                        "penalties": [],
+                        "related_articles": [2, 3]
+                    },
+                    "2": {
+                        "title": "نطاق التطبيق",
+                        "content": "يسري هذا النظام على جميع العمال وصاحب العمل في المملكة العربية السعودية.",
+                        "category": "نطاق التطبيق",
+                        "tags": ["نطاق", "تطبيق", "جميع"],
+                        "penalties": [],
+                        "related_articles": [1, 4]
+                    },
+                    "3": {
+                        "title": "استثناءات النظام",
+                        "content": "لا يسري هذا النظام على موظفي الدولة والعاملين في المنازل المنزلية.",
+                        "category": "استثناءات",
+                        "tags": ["استثناء", "منازل", "دولة"],
+                        "penalties": [],
+                        "related_articles": [1]
+                    },
+                    "4": {
+                        "title": "تعريف العامل",
+                        "content": "العامل هو كل شخص طبيعي يعمل تحت إدارة أو إشراف صاحب عمل مقابل أجر.",
+                        "category": "تعريفات",
+                        "tags": ["عامل", "تعريف", "أجر"],
+                        "penalties": [],
+                        "related_articles": [2, 5]
+                    },
+                    "5": {
+                        "title": "تعريف صاحب العمل",
+                        "content": "صاحب العمل هو كل شخص طبيعي أو اعتباري يستخدم عاملا أو أكثر مقابل أجر.",
+                        "category": "تعريفات",
+                        "tags": ["صاحب العمل", "تعريف"],
+                        "penalties": [],
+                        "related_articles": [2, 4]
+                    },
+                    "40": {
+                        "title": "ساعات العمل",
+                        "content": "لا يجوز أن تتجاوز ساعات العمل 8 ساعات يوميا أو 48 ساعة أسبوعيا.",
+                        "category": "ساعات العمل",
+                        "tags": ["ساعات", "عمل", "8 ساعات"],
+                        "penalties": ["غرامة مالية", "إغلاق المنشأة"],
+                        "related_articles": [41, 42]
+                    },
+                    "41": {
+                        "title": "ساعات العمل في رمضان",
+                        "content": "خلال شهر رمضان المبارك، تكون ساعات العمل 6 ساعات يوميا.",
+                        "category": "ساعات العمل",
+                        "tags": ["رمضان", "6 ساعات"],
+                        "penalties": ["غرامة مالية"],
+                        "related_articles": [40, 42]
+                    },
+                    "42": {
+                        "title": "فترات الراحة",
+                        "content": "يحق للعامل فترة راحة لا تقل عن نصف ساعة بعد 5 ساعات عمل متواصل.",
+                        "category": "ساعات العمل",
+                        "tags": ["راحة", "30 دقيقة"],
+                        "penalties": ["غرامة مالية"],
+                        "related_articles": [40, 41]
+                    },
+                    "50": {
+                        "title": "الأجر الأساسي",
+                        "content": "يجب دفع الأجر المتفق عليه في الموعد المحدد، ولا يجوز تأخيره أكثر من 7 أيام.",
+                        "category": "الأجور",
+                        "tags": ["أجر", "دفع", "7 أيام"],
+                        "penalties": ["غرامة مالية", "تعويض العامل"],
+                        "related_articles": [51, 52]
+                    },
+                    "51": {
+                        "title": "حسم الأجر",
+                        "content": "لا يجوز حسم أكثر من 10% من الأجر الأساسي بدون موافقة العامل.",
+                        "category": "الأجور",
+                        "tags": ["حسم", "10%", "موافقة"],
+                        "penalties": ["غرامة مالية", "إلغاء الحسم"],
+                        "related_articles": [50, 52]
+                    },
+                    "52": {
+                        "title": "علاوة نهاية الخدمة",
+                        "content": "يستحق العامل علاوة نهاية الخدمة بعد عامين من العمل المتواصل.",
+                        "category": "مكافآت",
+                        "tags": ["علاوة", "نهاية الخدمة", "عامين"],
+                        "penalties": ["تعويض العامل"],
+                        "related_articles": [50, 51]
+                    },
+                    "60": {
+                        "title": "إنهاء عقد العمل",
+                        "content": "يجوز لأي من الطرفين إنهاء عقد العمل قبل انتهاء مدته إذا لم يكن هناك اتفاق على خلاف ذلك.",
+                        "category": "إنهاء العقد",
+                        "tags": ["إنهاء", "عقد", "إخطار"],
+                        "penalties": ["تعويض"],
+                        "related_articles": [61, 62]
+                    },
+                    "61": {
+                        "title": "إخطار إنهاء العقد",
+                        "content": "يجب إبلاغ الطرف الآخر بكتابة قبل 30 يوما من تاريخ إنهاء العقد.",
+                        "category": "إنهاء العقد",
+                        "tags": ["إخطار", "30 يوم", "كتابة"],
+                        "penalties": ["تعويض عن عدم الإخطار"],
+                        "related_articles": [60, 62]
+                    },
+                    "62": {
+                        "title": "تعويض إنهاء العقد",
+                        "content": "إذا لم يتم إبلاغ العامل بكتابة، يستحق تعويضا عن فترة الإخطار.",
+                        "category": "إنهاء العقد",
+                        "tags": ["تعويض", "إخطار", "كتابة"],
+                        "penalties": [],
+                        "related_articles": [60, 61]
+                    },
+                    "70": {
+                        "title": "إجازات سنوية",
+                        "content": "يستحق العامل إجازة سنوية مدفوعة الأجر لمدة 21 يوما بعد عام من العمل.",
+                        "category": "إجازات",
+                        "tags": ["إجازة", "21 يوم", "مدفوعة"],
+                        "penalties": ["تعويض عن الإجازة"],
+                        "related_articles": [71, 72]
+                    },
+                    "71": {
+                        "title": "إجازات مرضية",
+                        "content": "يستحق العامل إجازة مرضية مدفوعة الأجر لمدة 30 يوما في السنة.",
+                        "category": "إجازات",
+                        "tags": ["مرضية", "30 يوم", "مدفوعة"],
+                        "penalties": [],
+                        "related_articles": [70, 72]
+                    },
+                    "72": {
+                        "title": "إجازات بدون راتب",
+                        "content": "يمكن منح العامل إجازة بدون راتب لمدة لا تتجاوز 4 أشهر في السنة.",
+                        "category": "إجازات",
+                        "tags": ["بدون راتب", "4 أشهر"],
+                        "penalties": [],
+                        "related_articles": [70, 71]
+                    },
+                    "80": {
+                        "title": "سلامة العمل",
+                        "content": "يجب على صاحب العمل توفير بيئة عمل آمنة وخالية من المخاطر.",
+                        "category": "سلامة العمل",
+                        "tags": ["سلامة", "آمنة", "مخاطر"],
+                        "penalties": ["غرامة مالية", "إغلاق المنشأة"],
+                        "related_articles": [81, 82]
+                    },
+                    "81": {
+                        "title": "معدات السلامة",
+                        "content": "يجب توفير معدات السلامة اللازمة حسب طبيعة العمل.",
+                        "category": "سلامة العمل",
+                        "tags": ["معدات", "سلامة", "ضرورية"],
+                        "penalties": ["غرامة مالية"],
+                        "related_articles": [80, 82]
+                    },
+                    "82": {
+                        "title": "تدريب السلامة",
+                        "content": "يجب تدريب العمال على إجراءات السلامة ومخاطر العمل.",
+                        "category": "سلامة العمل",
+                        "tags": ["تدريب", "إجراءات", "مخاطر"],
+                        "penalties": ["غرامة مالية"],
+                        "related_articles": [80, 81]
+                    },
+                    "90": {
+                        "title": "تمييز العامل",
+                        "content": "يحرم التمييز بين العمال بناءً على الجنس أو الدين أو الجنسية.",
+                        "category": "حقوق العامل",
+                        "tags": ["تمييز", "محرم", "حقوق"],
+                        "penalties": ["غرامة مالية", "تعويض"],
+                        "related_articles": [91, 92]
+                    },
+                    "91": {
+                        "title": "حقوق المرأة العاملة",
+                        "content": "للمرأة العاملة نفس حقوق الرجل في العمل والأجر.",
+                        "category": "حقوق العامل",
+                        "tags": ["مرأة", "حقوق", "مساواة"],
+                        "penalties": ["تمييز", "غرامة"],
+                        "related_articles": [90, 92]
+                    },
+                    "92": {
+                        "title": "حقوق العمال الأجانب",
+                        "content": "للعمال الأجانب نفس حقوق العمال السعوديين حسب النظام.",
+                        "category": "حقوق العامل",
+                        "tags": ["أجانب", "حقوق", "مساواة"],
+                        "penalties": ["تمييز", "غرامة"],
+                        "related_articles": [90, 91]
+                    }
+                }
             },
-            "m84": {
-                "title": "مادة 84 - مكافأة نهاية الخدمة",
-                "text": "يستحق العامل الذي أمضى في خدمة صاحب عمل مدة لا تقل عن عامين مكافأة عن نهاية خدمته تساوي أجر خمسة عشر يوماً عن كل سنة من السنوات الخمس الأولى، وأجر شهر عن كل سنة من السنوات التي تلي ذلك. ويستحق العامل مكافأة عن الكسر من السنة بتناسب ما أمضاه في العمل.
-ويكون حساب المكافأة على أساس آخر أجر حصل عليه العامل.
-إذا انتهى عقد العمل بسبب استقالة العامل، فإن المكافأة مستحقة إذا كانت مدة خدمته لا تقل عن عامين، ويحق لصاحب العمل خصم مقدار المكافأة من الأجر المستحق للعامل.",
-                "source": "نظام العمل السعودي",
-                "article": "84",
-                "category": "نهاية الخدمة"
-            },
-            "m85": {
-                "title": "مادة 85 - استحقاق المكافأة في حالات معينة",
-                "text": "يستحق العامل مكافأة نهاية الخدمة في الحالات التالية:
-1- إذا انتهى عقد العمل بمضي المدة المتفق عليها.
-2- إذا انتهى عقد العمل بسبب إحالة العامل إلى التقاعد.
-3- إذا انتهى عقد العمل بسبب عجز العامل عن أداء العمل بسبب مرض أو حادث غير مرتبط بالعمل.
-4- إذا انتهى عقد العمل بسبب وفاة العامل.
-5- إذا انتهى عقد العمل بسبب إغلاق المنشأة نهائياً.",
-                "source": "نظام العمل السعودي",
-                "article": "85",
-                "category": "نهاية الخدمة"
-            },
-            "m86": {
-                "title": "مادة 86 - عدم استحقاق المكافأة",
-                "text": "لا يستحق العامل مكافأة نهاية الخدمة في الحالات التالية:
-1- إذا انتهى عقد العمل بسبب فصل العامل تأديبياً.
-2- إذا انتهى عقد العمل بسبب هجر العامل للعمل بدون سبب مشروع لمدة ثلاثة أيام متتالية أو خمسة أيام متقطعة خلال شهر واحد.
-3- إذا انتهى عقد العمل بسبب مخالفة العامل لأحكام النظام أو اللائحة التنفيذية أو تعليمات العمل.",
-                "source": "نظام العمل السعودي",
-                "article": "86",
-                "category": "نهاية الخدمة"
-            },
-            "m39": {
-                "title": "مادة 39 - الأجر أثناء المرض",
-                "text": "إذا مرض العامل بسبب غير مرتبط بالعمل، استحق الأجر الكامل عن المدة التالية:
-1- ثلاثون يوماً إذا كانت خدمته أقل من عام.
-2- ستون يوماً إذا كانت خدمته سنة فأكثر.
-3- مائة وعشرون يوماً إذا كانت خدمته ثلاث سنوات فأكثر.
-4- مائة وثمانون يوماً إذا كانت خدمته خمس سنوات فأكثر.
-ويستحق العامل خلال المدة المذكورة نصف الأجر عن المدة التالية:
-1- ثلاثون يوماً إذا كانت خدمته سنة فأكثر.
-2- ستون يوماً إذا كانت خدمته ثلاث سنوات فأكثر.
-3- تسعون يوماً إذا كانت خدمته خمس سنوات فأكثر.",
-                "source": "نظام العمل السعودي",
-                "article": "39",
-                "category": "الأجور"
-            },
-            "m47": {
-                "title": "مادة 47 - ساعات العمل اليومية",
-                "text": "لا يجوز أن يزيد العمل الفعلي عن ثماني ساعات في اليوم الواحد، أو عن ستة وأربعين ساعة في الأسبوع.
-يجوز زيادة ساعات العمل إلى تسع ساعات في اليوم في شهر رمضان المبارك.
-يجوز زيادة ساعات العمل في بعض الفترات أو المناسبات الخاصة، على أن لا تتجاوز الساعة العاشرة في اليوم، وعلى أن يحصل العامل على تعويض عن الساعات الإضافية.",
-                "source": "نظام العمل السعودي",
-                "article": "47",
-                "category": "ساعات العمل"
-            },
-            "m77": {
-                "title": "مادة 77 - التعويض عن الفصل التعسفي",
-                "text": "إذا فصل العامل تعسفياً، استحق تعويضاً عن الضرر الذي أصابه، ويقدر هذا التعويض بما لا يزيد عن أجر شهرين عن كل سنة من سنوات خدمته.",
-                "source": "نظام العمل السعودي",
-                "article": "77",
-                "category": "المنازعات العمالية"
-            },
-            "m120": {
-                "title": "مادة 120 - السلامة المهنية",
-                "text": "يلتزم صاحب العمل بتوفير بيئة عمل آمنة وصحية للعمال، وتوفير جميع وسائل الحماية اللازمة من المخاطر المهنية.
-ويجب على صاحب العمل تقديم التدريبات اللازمة للعمال حول السلامة المهنية.
-ويحق للعامل الامتناع عن العمل في بيئة غير آمنة.",
-                "source": "نظام العمل السعودي",
-                "article": "120",
-                "category": "السلامة المهنية"
-            },
-            "m130": {
-                "title": "مادة 130 - التأمينات الاجتماعية",
-                "text": "يلتزم صاحب العمل بتسجيل جميع عماله في نظام التأمينات الاجتماعية خلال ثلاثين يوماً من تاريخ تعيينهم.
-ويتحمل صاحب العمل 11% من الأجر الشهري كاشتراك في التأمينات الاجتماعية، بينما يتحمل العامل 9%.
-ويستحق العامل معاشاً تقاعدياً بعد بلوغ سن التقاعد (60 عاماً) ومدة اشتراك لا تقل عن 120 شهراً.",
-                "source": "نظام العمل السعودي",
-                "article": "130",
-                "category": "التأمينات الاجتماعية"
-            },
-            "m140": {
-                "title": "مادة 140 - حل المنازعات العمالية",
-                "text": "تختص لجان تسوية المنازعات العمالية بالنظر في جميع المنازعات العمالية بين العمال وصاحب العمل.
-ويجب تقديم الدعوى إلى اللجنة خلال 12 شهراً من تاريخ حدوث المنازعة.
-وتكون قرارات اللجنة نهائية وملزمة للطرفين.",
-                "source": "نظام العمل السعودي",
-                "article": "140",
-                "category": "المنازعات العمالية"
+            "penalty_codes": {
+                "غرامة مالية": {
+                    "description": "غرامة مالية تتراوح بين 5000 و 10000 ريال",
+                    "legal_basis": "المادة 10 من نظام العمل"
+                },
+                "إغلاق المنشأة": {
+                    "description": "إغلاق المنشأة لمدة لا تتجاوز 30 يوما",
+                    "legal_basis": "المادة 11 من نظام العمل"
+                },
+                "تعويض العامل": {
+                    "description": "تعويض العامل عن الأضرار التي لحقت به",
+                    "legal_basis": "المادة 12 من نظام العمل"
+                },
+                "تعويض عن عدم الإخطار": {
+                    "description": "تعويض عن عدم إبلاغ العامل بكتابة قبل إنهاء العقد",
+                    "legal_basis": "المادة 61 من نظام العمل"
+                },
+                "تعويض عن الإجازة": {
+                    "description": "تعويض عن عدم منح العامل إجازته السنوية",
+                    "legal_basis": "المادة 70 من نظام العمل"
+                }
             }
         }
-        self.categories = {
-            "نهاية الخدمة": [],
-            "الأجور": [],
-            "عقد العمل": [],
-            "ساعات العمل": [],
-            "التأمينات الاجتماعية": [],
-            "المنازعات العمالية": [],
-            "السلامة المهنية": [],
-            "الإجازات": [],
-            "التأديب": [],
-        }
-        self._index_laws()
 
-    def _index_laws(self):
-        """فهرسة القوانين حسب الفئات"""
-        for law_id, law in self.laws.items():
-            category = law.get("category", "عام")
-            if category not in self.categories:
-                self.categories[category] = []
-            self.categories[category].append(law_id)
+    def get_article(self, article_id: str) -> Optional[Dict]:
+        """Get a specific article by its ID"""
+        try:
+            return self.articles["labor_law"]["articles"].get(article_id)
+        except (KeyError, AttributeError):
+            return None
 
-    def get_law_by_id(self, law_id: str) -> Optional[Dict]:
-        """الحصول على نص قانون بواسطة المعرف"""
-        return self.laws.get(law_id)
-
-    def get_laws_by_category(self, category: str) -> List[Dict]:
-        """الحصول على جميع القوانين في فئة معينة"""
-        law_ids = self.categories.get(category, [])
-        return [self.laws[law_id] for law_id in law_ids if law_id in self.laws]
-
-    def search_laws(self, query: str, category: Optional[str] = None) -> List[Dict]:
-        """بحث في نصوص القوانين"""
+    def search_articles(self, query: str, limit: int = 10) -> List[Dict]:
+        """Search articles by content, title, or tags"""
         results = []
         query_lower = query.lower()
-        categories_to_search = [category] if category else self.categories.keys()
-        for cat in categories_to_search:
-            for law_id in self.categories.get(cat, []):
-                law = self.get_law_by_id(law_id)
-                if law and query_lower in law.get("text", "").lower():
-                    results.append(law)
-        return results
+
+        for article_id, article in self.articles["labor_law"]["articles"].items():
+            if (query_lower in article["title"].lower() or
+                query_lower in article["content"].lower() or
+                any(query_lower in tag.lower() for tag in article["tags"])):
+                results.append({
+                    "id": article_id,
+                    "title": article["title"],
+                    "content": article["content"],
+                    "category": article["category"],
+                    "tags": article["tags"],
+                    "score": self._calculate_score(article, query_lower)
+                })
+
+        # Sort by score (descending)
+        results.sort(key=lambda x: x["score"], reverse=True)
+        return results[:limit]
+
+    def _calculate_score(self, article: Dict, query: str) -> float:
+        """Calculate relevance score for search results"""
+        score = 0
+
+        # Exact match in title
+        if query in article["title"].lower():
+            score += 10
+
+        # Exact match in content
+        if query in article["content"].lower():
+            score += 5
+
+        # Match in tags
+        for tag in article["tags"]:
+            if query in tag.lower():
+                score += 3
+
+        # Partial match
+        if any(word in article["title"].lower() for word in query.split()):
+            score += 2
+        if any(word in article["content"].lower() for word in query.split()):
+            score += 1
+
+        return score
+
+    def get_articles_by_category(self, category: str) -> List[Dict]:
+        """Get all articles in a specific category"""
+        return [
+            {"id": aid, **data}
+            for aid, data in self.articles["labor_law"]["articles"].items()
+            if data["category"] == category
+        ]
 
     def get_all_categories(self) -> List[str]:
-        """الحصول على جميع الفئات"""
-        return list(self.categories.keys())
+        """Get list of all unique categories"""
+        return list(set(
+            article["category"]
+            for article in self.articles["labor_law"]["articles"].values()
+        ))
 
-labor_db = SaudiLaborDatabase()
+    def get_penalty_info(self, penalty_type: str) -> Optional[Dict]:
+        """Get information about a specific penalty type"""
+        return self.articles["penalty_codes"].get(penalty_type)
 
-def get_legal_database():
-    """الحصول على مثيل قاعدة البيانات"""
-    return labor_db
+    def get_related_articles(self, article_id: str) -> List[Dict]:
+        """Get articles related to a specific article"""
+        article = self.get_article(article_id)
+        if not article or not article.get("related_articles"):
+            return []
+
+        related_ids = article["related_articles"]
+        return [
+            {"id": rid, **self.articles["labor_law"]["articles"][rid]}
+            for rid in related_ids
+            if rid in self.articles["labor_law"]["articles"]
+        ]
+
+    def save_database(self, path: Optional[str] = None) -> bool:
+        """Save the database to a JSON file"""
+        try:
+            save_path = Path(path) if path else self.db_path
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(save_path, 'w', encoding='utf-8') as f:
+                json.dump(self.articles, f, ensure_ascii=False, indent=2)
+            return True
+        except Exception as e:
+            st.error(f"Failed to save database: {e}")
+            return False
+
+    def add_article(self, article_data: Dict) -> bool:
+        """Add a new article to the database"""
+        try:
+            article_id = str(len(self.articles["labor_law"]["articles"]) + 1)
+            self.articles["labor_law"]["articles"][article_id] = article_data
+            return self.save_database()
+        except Exception as e:
+            st.error(f"Failed to add article: {e}")
+            return False
+
+# ======================
+# GLOBAL INSTANCE
+# ======================
+
+# Create a single instance of the database
+_legal_db = LegalDatabase()
+
+def get_legal_database() -> LegalDatabase:
+    """Get the global legal database instance"""
+    return _legal_db
+
+# For backward compatibility
+legal_database = _legal_db
