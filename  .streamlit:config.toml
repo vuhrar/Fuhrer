@@ -1,0 +1,33 @@
+[theme]
+base = "dark"
+primaryColor = "#c9a84c"
+backgroundColor = "#1c1c1e"
+secondaryBackgroundColor = "#2c2c2e"
+textColor = "#ffffff"
+font = "sans serif"
+
+[server]
+port = 8501
+headless = true
+enableCORS = false
+enableXsrfProtection = true
+
+[logger]
+level = "info"
+messageFormat = "%(asctime)s %(levelname)s %(message)s"
+
+[client]
+showErrorDetails = true
+showSidebarNavigation = false
+toolbarMode = "minimal"
+
+[global]
+developmentMode = false
+minCachedMessageAge = "3600"
+maxCachedMessageAge = "86400"
+maxCachedMessages = 100
+sharingMode = "off"
+
+[runner]
+fastReruns = true
+magicEnabled = true
