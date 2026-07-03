@@ -1,136 +1,261 @@
 # -*- coding: utf-8 -*-
 """
-Fuhrer - Saudi Labor Law Assistant
+Fuhrer - Saudi Labor Law Assistant | تصميم احترافي 8K
 """
 
 import os
 import streamlit as st
-from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
 # ======================
-# STYLES (تصميم أصلي + تحسينات طفيفة)
+# PROFESSIONAL 8K STYLES
 # ======================
-def get_custom_styles():
+def get_professional_styles():
     return """
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
-        
-        /* Global RTL & Font */
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+
+        /* ===== GLOBAL STYLES ===== */
         html, body, [class*="css"] {
             font-family: 'Cairo', sans-serif !important;
             direction: rtl !important;
             text-align: right !important;
+            background-color: #111827 !important;
+            color: #FFFFFF !important;
         }
-        
-        /* Main container */
+
+        /* ===== MAIN CONTAINER ===== */
         .main > div {
             max-width: 1000px !important;
-            padding: 1rem !important;
+            padding: 2rem !important;
+            background-color: #111827 !important;
         }
-        
-        /* Sidebar */
+
+        /* ===== SIDEBAR ===== */
         div[data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #1e3a8a 0%, #0f172a 100%) !important;
+            background-color: #1F2937 !important;
+            border-right: 1px solid #D4AF37 !important;
         }
-        
-        /* Buttons */
+        div[data-testid="stSidebar"] .stTextInput > div > div > input,
+        div[data-testid="stSidebar"] .stButton > button {
+            background-color: #1F2937 !important;
+            color: #FFFFFF !important;
+            border: 1px solid #D4AF37 !important;
+        }
+
+        /* ===== BUTTONS ===== */
         .stButton > button {
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
-            color: white !important;
-            border: none !important;
+            background-color: #374151 !important;
+            color: #FFFFFF !important;
+            border: 1px solid #D4AF37 !important;
             border-radius: 8px !important;
-            padding: 0.5rem 1.5rem !important;
+            padding: 0.75rem 2rem !important;
             font-size: 1rem !important;
+            font-weight: 600 !important;
             transition: all 0.3s ease !important;
         }
         .stButton > button:hover {
+            background-color: #D4AF37 !important;
+            color: #111827 !important;
             transform: translateY(-2px) !important;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3) !important;
         }
-        
-        /* Input fields */
+        .stButton > button:active {
+            transform: translateY(0) !important;
+        }
+
+        /* ===== INPUT FIELDS ===== */
         .stTextInput > div > div > input,
         .stTextArea > div > div > textarea {
-            border: 1px solid #d1d5db !important;
+            background-color: #F9FAFB !important;
+            border: 2px solid #D4AF37 !important;
             border-radius: 8px !important;
             padding: 0.75rem !important;
-            background-color: #f9fafb !important;
+            color: #111827 !important;
+            font-family: 'Cairo', sans-serif !important;
         }
-        
-        /* File uploader */
+        .stTextInput > div > div > input:focus,
+        .stTextArea > div > div > textarea:focus {
+            border-color: #D4AF37 !important;
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1) !important;
+            outline: none !important;
+        }
+
+        /* ===== FILE UPLOADER ===== */
         .stFileUploader > div {
-            border: 2px dashed #3b82f6 !important;
+            background-color: #F9FAFB !important;
+            border: 2px dashed #D4AF37 !important;
             border-radius: 12px !important;
             padding: 2rem !important;
-            background-color: #f0f9ff !important;
+            color: #111827 !important;
         }
-        
-        /* Cards */
-        .stCard, [data-testid="stExpander"] {
-            background: white !important;
-            border: 1px solid #e5e7eb !important;
+
+        /* ===== EXPANDERS & CARDS ===== */
+        .stExpander, [data-testid="stExpander"] {
+            background-color: #1F2937 !important;
+            border: 1px solid #374151 !important;
             border-radius: 12px !important;
-            padding: 1.5rem !important;
             margin: 1rem 0 !important;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
         }
-        
-        /* Tabs */
+        .stExpander > div:first-child {
+            background-color: #374151 !important;
+            color: #FFFFFF !important;
+            border-radius: 12px 12px 0 0 !important;
+        }
+
+        /* ===== TABS ===== */
         .stTabs [data-baseweb="tab-list"] {
-            gap: 8px !important;
+            gap: 4px !important;
+            background-color: #1F2937 !important;
         }
         .stTabs [data-baseweb="tab"] {
+            background-color: #374151 !important;
+            color: #FFFFFF !important;
             border-radius: 8px 8px 0 0 !important;
-            padding: 10px 20px !important;
+            padding: 12px 24px !important;
             font-weight: 600 !important;
+            border: 1px solid #374151 !important;
         }
         .stTabs [aria-selected="true"] {
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
-            color: white !important;
+            background-color: #D4AF37 !important;
+            color: #111827 !important;
+            border-bottom: 1px solid #111827 !important;
         }
-        
-        /* Persona buttons (تصميم أنيق) */
+
+        /* ===== PERSONA BUTTONS (بدون أيموجي) ===== */
+        .persona-container {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 1.5rem 0;
+        }
         .persona-button {
-            background: white !important;
-            border: 2px solid #3b82f6 !important;
-            color: #1e40af !important;
+            background-color: #1F2937 !important;
+            border: 2px solid #D4AF37 !important;
+            color: #FFFFFF !important;
             border-radius: 12px !important;
-            padding: 1rem !important;
-            transition: all 0.3s ease !important;
+            padding: 1.5rem !important;
+            width: 200px !important;
             text-align: center !important;
             cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            font-family: 'Cairo', sans-serif !important;
+            font-weight: 600 !important;
         }
         .persona-button:hover {
-            background: #3b82f6 !important;
-            color: white !important;
+            background-color: #D4AF37 !important;
+            color: #111827 !important;
             transform: translateY(-4px) !important;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+            box-shadow: 0 8px 16px rgba(212, 175, 55, 0.3) !important;
+            border-color: #D4AF37 !important;
         }
-        
-        /* Alerts */
-        .stAlert {
-            border-radius: 8px !important;
-            padding: 1rem !important;
-            margin: 1rem 0 !important;
+        .persona-button.selected {
+            background-color: #D4AF37 !important;
+            color: #111827 !important;
+            border-color: #D4AF37 !important;
         }
-        
-        /* Header */
+
+        /* ===== HEADER ===== */
         .header {
-            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%) !important;
-            color: white !important;
+            background: linear-gradient(135deg, #1F2937 0%, #374151 100%) !important;
+            color: #FFFFFF !important;
             padding: 2rem 1rem !important;
             border-radius: 0 0 15px 15px !important;
             margin-bottom: 2rem !important;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+            border: 1px solid #D4AF37 !important;
+            box-shadow: 0 4px 6px rgba(212, 175, 55, 0.1) !important;
+        }
+        .header h1 {
+            margin: 0 !important;
+            font-size: 2rem !important;
+            font-weight: 700 !important;
+        }
+        .header p {
+            margin: 0.5rem 0 0 0 !important;
+            opacity: 0.9 !important;
+            font-size: 1.1rem !important;
+        }
+
+        /* ===== ALERTS ===== */
+        .stAlert {
+            background-color: #1F2937 !important;
+            border: 1px solid #D4AF37 !important;
+            border-radius: 8px !important;
+            color: #FFFFFF !important;
+        }
+        .stAlert-error {
+            background-color: rgba(239, 68, 68, 0.2) !important;
+            border-color: #ef4444 !important;
+        }
+        .stAlert-warning {
+            background-color: rgba(245, 158, 11, 0.2) !important;
+            border-color: #f59e0b !important;
+        }
+        .stAlert-success {
+            background-color: rgba(16, 185, 129, 0.2) !important;
+            border-color: #10b981 !important;
+        }
+
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1F2937;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #D4AF37;
+        }
+
+        /* ===== TOOL BUTTONS GRID ===== */
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        .tool-card {
+            background-color: #1F2937 !important;
+            border: 1px solid #374151 !important;
+            border-radius: 12px !important;
+            padding: 1.5rem !important;
+            text-align: center !important;
+            transition: all 0.3s ease !important;
+        }
+        .tool-card:hover {
+            border-color: #D4AF37 !important;
+            transform: translateY(-4px) !important;
+            box-shadow: 0 8px 16px rgba(212, 175, 55, 0.2) !important;
         }
     </style>
     """
+    + """
+    <script>
+        // Add dynamic interaction for persona buttons
+        document.addEventListener('DOMContentLoaded', function() {
+            const personaButtons = document.querySelectorAll('.persona-button');
+            personaButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Remove selected class from all buttons
+                    personaButtons.forEach(btn => btn.classList.remove('selected'));
+                    // Add selected class to clicked button
+                    this.classList.add('selected');
+                });
+            });
+        });
+    </script>
+    """
 
-st.markdown(get_custom_styles(), unsafe_allow_html=True)
+# Inject styles
+st.markdown(get_professional_styles(), unsafe_allow_html=True)
 
 # ======================
 # PAGE CONFIG
@@ -146,28 +271,63 @@ st.set_page_config(
 # SIDEBAR - API Configuration
 # ======================
 def setup_sidebar():
+    """Configure sidebar with professional dark theme"""
     st.sidebar.markdown("## ⚙️ إعدادات API")
     st.sidebar.markdown("---")
 
-    # API Keys Input
+    # API Keys Input with professional styling
     api_config = {
-        "HUGGINGFACE_TOKEN": st.sidebar.text_input("🤗 Hugging Face Token", type="password", value=os.getenv("HUGGINGFACE_TOKEN", "")),
-        "GROQ_API_KEY": st.sidebar.text_input("⚡ Groq API Key", type="password", value=os.getenv("GROQ_API_KEY", "")),
-        "SUPABASE_URL": st.sidebar.text_input("🗄️ Supabase URL", value=os.getenv("SUPABASE_URL", "")),
-        "SUPABASE_KEY": st.sidebar.text_input("🔑 Supabase Key", type="password", value=os.getenv("SUPABASE_KEY", ""))
+        "HUGGINGFACE_TOKEN": st.sidebar.text_input(
+            "Hugging Face Token",
+            type="password",
+            value=os.getenv("HUGGINGFACE_TOKEN", ""),
+            key="hf_token",
+            label_visibility="collapsed"
+        ),
+        "GROQ_API_KEY": st.sidebar.text_input(
+            "Groq API Key",
+            type="password",
+            value=os.getenv("GROQ_API_KEY", ""),
+            key="groq_token",
+            label_visibility="collapsed"
+        ),
+        "SUPABASE_URL": st.sidebar.text_input(
+            "Supabase URL",
+            value=os.getenv("SUPABASE_URL", ""),
+            key="supabase_url",
+            label_visibility="collapsed"
+        ),
+        "SUPABASE_KEY": st.sidebar.text_input(
+            "Supabase Key",
+            type="password",
+            value=os.getenv("SUPABASE_KEY", ""),
+            key="supabase_key",
+            label_visibility="collapsed"
+        )
     }
 
+    # Add labels with HTML for better styling
+    st.sidebar.markdown("""
+    <div style='color: #D4AF37; margin-top: 1rem;'>
+        <p style='margin: 0.5rem 0; font-size: 0.9rem;'><b>🤗 Hugging Face Token</b></p>
+        <p style='margin: 0.5rem 0; font-size: 0.9rem;'><b>⚡ Groq API Key</b></p>
+        <p style='margin: 0.5rem 0; font-size: 0.9rem;'><b>🗄️ Supabase URL</b></p>
+        <p style='margin: 0.5rem 0; font-size: 0.9rem;'><b>🔑 Supabase Key</b></p>
+    </div>
+    """, unsafe_allow_html=True)
+
     # Test Connection Button
-    if st.sidebar.button("🔍 اختبار الاتصال", use_container_width=True):
+    if st.sidebar.button("🔍 اختبار الاتصال", use_container_width=True, key="test_connection"):
         with st.spinner("جاري الاختبار..."):
             test_connections(api_config)
 
-    # Display status
+    # Display connection status
     display_connection_status()
 
     return api_config
 
 def test_connections(api_config):
+    """Test all API connections"""
     results = {}
 
     # Test Hugging Face
@@ -176,11 +336,11 @@ def test_connections(api_config):
             from ai_engine import HuggingFaceEngine
             hf = HuggingFaceEngine(api_token=api_config["HUGGINGFACE_TOKEN"])
             hf.generate("اختبار", max_tokens=5)
-            results["Hugging Face"] = {"status": "✅ متصل", "color": "green"}
+            results["Hugging Face"] = {"status": "متصل", "color": "#10b981"}
         except Exception as e:
-            results["Hugging Face"] = {"status": f"❌ خطأ", "color": "red", "error": str(e)}
+            results["Hugging Face"] = {"status": "خطأ", "color": "#ef4444", "error": str(e)}
     else:
-        results["Hugging Face"] = {"status": "⚠️ مفقود", "color": "orange"}
+        results["Hugging Face"] = {"status": "مفقود", "color": "#f59e0b"}
 
     # Test Groq
     if api_config["GROQ_API_KEY"]:
@@ -188,11 +348,11 @@ def test_connections(api_config):
             from ai_engine import GroqEngine
             groq = GroqEngine(api_key=api_config["GROQ_API_KEY"])
             groq.generate("اختبار", max_tokens=5)
-            results["Groq"] = {"status": "✅ متصل", "color": "green"}
+            results["Groq"] = {"status": "متصل", "color": "#10b981"}
         except Exception as e:
-            results["Groq"] = {"status": f"❌ خطأ", "color": "red", "error": str(e)}
+            results["Groq"] = {"status": "خطأ", "color": "#ef4444", "error": str(e)}
     else:
-        results["Groq"] = {"status": "⚠️ مفقود", "color": "orange"}
+        results["Groq"] = {"status": "مفقود", "color": "#f59e0b"}
 
     # Test Supabase
     if api_config["SUPABASE_URL"] and api_config["SUPABASE_KEY"]:
@@ -200,57 +360,79 @@ def test_connections(api_config):
             from storage import SupabaseStorage
             supabase = SupabaseStorage(url=api_config["SUPABASE_URL"], key=api_config["SUPABASE_KEY"])
             supabase.list_files()
-            results["Supabase"] = {"status": "✅ متصل", "color": "green"}
+            results["Supabase"] = {"status": "متصل", "color": "#10b981"}
         except Exception as e:
-            results["Supabase"] = {"status": f"❌ خطأ", "color": "red", "error": str(e)}
+            results["Supabase"] = {"status": "خطأ", "color": "#ef4444", "error": str(e)}
     else:
-        results["Supabase"] = {"status": "⚠️ مفقود", "color": "orange"}
+        results["Supabase"] = {"status": "مفقود", "color": "#f59e0b"}
 
     st.session_state.api_status = results
 
 def display_connection_status():
+    """Display API connection status with professional colors"""
     if "api_status" in st.session_state:
         st.sidebar.markdown("### 📡 حالة الاتصال")
         for service, result in st.session_state.api_status.items():
-            st.sidebar.markdown(f"**{service}**: <span style='color:{result['color']}'>{result['status']}</span>", unsafe_allow_html=True)
-            if result.get("error") and st.sidebar.button(f"🔴 تفاصيل {service}", key=f"err_{service}"):
+            color = result["color"]
+            status = result["status"]
+            st.sidebar.markdown(
+                f'<p style="color: {color}; margin: 0.5rem 0; font-weight: 600;">• {service}: {status}</p>',
+                unsafe_allow_html=True
+            )
+            if result.get("error") and st.sidebar.button(f"تفاصيل {service}", key=f"err_{service}"):
                 st.sidebar.error(result["error"])
 
 # ======================
-# PERSONA SELECTION (تصميم أنيق)
+# PERSONA SYSTEM (بدون أيموجي)
 # ======================
 PERSONA_INFO = {
-    "worker": {"name": "عامل", "icon": "👷", "description": "للموظفين والعاملين", "color": "#10b981"},
-    "employer": {"name": "صاحب عمل", "icon": "🏢", "description": "لأصحاب العمل", "color": "#3b82f6"},
-    "lawyer": {"name": "محامي", "icon": "⚖️", "description": " للمحامين", "color": "#ef4444"},
-    "judge": {"name": "قاضي", "icon": "👨⚖️", "description": " للقضاة", "color": "#8b5cf6"}
+    "worker": {"name": "عامل", "description": "للموظفين والعاملين", "color": "#10b981"},
+    "employer": {"name": "صاحب عمل", "description": "لأصحاب العمل", "color": "#3b82f6"},
+    "lawyer": {"name": "محامي", "description": " للمحامين", "color": "#ef4444"},
+    "judge": {"name": "قاضي", "description": " للقضاة", "color": "#8b5cf6"}
 }
 
 def select_persona():
-    st.markdown("<div class='header'><h1>⚖️ Fuhrer - قانون العمل السعودي</h1><p>مساعد قانوني ذكي لنظام العمل السعودي</p></div>", unsafe_allow_html=True)
+    """Personas selection with professional design"""
+    st.markdown("<div class='header'><h1>⚖️ Fuhrer</h1><p>نظام قانون العمل السعودي الذكي</p></div>", unsafe_allow_html=True)
     st.markdown("## 👤 اختر دورك")
-    
+
+    # Create persona buttons with HTML/CSS
+    persona_html = """
+    <div class="persona-container">
+    """
+    for persona_id, info in PERSONA_INFO.items():
+        persona_html += f"""
+        <div class="persona-button" onclick="document.getElementById('{persona_id}_btn').click()">
+            <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">{info['name']}</div>
+            <div style="font-size: 0.9rem; opacity: 0.8;">{info['description']}</div>
+        </div>
+        """
+    persona_html += """
+    </div>
+    """
+
+    st.markdown(persona_html, unsafe_allow_html=True)
+
+    # Hidden buttons for functionality
     cols = st.columns(4)
-    selected_persona = None
-    
     for idx, (persona_id, info) in enumerate(PERSONA_INFO.items()):
         with cols[idx]:
-            button_html = f"""
-            <div class="persona-button" onclick="this.parentElement.querySelector('button').click()">
-                <div style="font-size: 2rem;">{info['icon']}</div>
-                <div style="font-weight: bold; margin-top: 0.5rem;">{info['name']}</div>
-                <div style="font-size: 0.8rem; color: #6b7280; margin-top: 0.5rem;">{info['description']}</div>
-            </div>
-            """
-            st.markdown(button_html, unsafe_allow_html=True)
-            if st.button("", key=f"persona_{persona_id}"):
-                selected_persona = persona_id
+            if st.button("", key=f"{persona_id}_btn", label_visibility="collapsed"):
                 st.session_state.persona = persona_id
-    
+
+    # Display selected persona
     if "persona" in st.session_state:
-        selected_persona = st.session_state.persona
-    
-    return selected_persona
+        persona = st.session_state.persona
+        info = PERSONA_INFO[persona]
+        st.markdown(f"""
+        <div style='background-color: {info['color']}22; padding: 1rem; border-radius: 8px; margin-top: 1rem; border: 1px solid {info['color']}'>
+            <p style='margin: 0; font-weight: 600;'>دورك الحالي: <span style='color: {info['color']}'>{info['name']}</span></p>
+        </div>
+        """, unsafe_allow_html=True)
+        return persona
+
+    return None
 
 # ======================
 # MAIN APP
@@ -265,15 +447,9 @@ def main():
         st.warning("⚠️ يرجى اختيار دورك أولاً")
         st.stop()
 
-    persona_info = PERSONA_INFO[persona]
-
     # ======================
-    # TOOLS & FEATURES
+    # TOOLS GRID
     # ======================
-    st.markdown("---")
-    st.markdown(f"### 🛠️ أدوات {persona_info['name']}")
-
-    # Get tools for persona
     try:
         from legal_tools import get_tools_for_persona, PERSONA_PROMPTS
         tools_list = get_tools_for_persona(persona)
@@ -282,22 +458,32 @@ def main():
         st.error(f"خطأ في تحميل الأدوات: {str(e)}")
         st.stop()
 
-    # Display tools in a clean grid
-    cols = st.columns(3)
-    for i, tool in enumerate(tools_list):
-        with cols[i % 3]:
-            if st.button(f"{tool['icon']} {tool['name']}", use_container_width=True, key=f"tool_{tool['func']}"):
-                st.session_state.selected_tool = tool["func"]
-                st.rerun()
+    st.markdown("## 🛠️ الأدوات المتاحة")
+    st.markdown('<div class="tools-grid">', unsafe_allow_html=True)
+
+    for tool in tools_list:
+        tool_html = f"""
+        <div class="tool-card" onclick="document.getElementById('{tool['func']}_btn').click()">
+            <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">{tool['icon']}</div>
+            <div style="font-weight: 600; margin-bottom: 0.5rem;">{tool['name']}</div>
+            <div style="font-size: 0.85rem; opacity: 0.8;">{tool['description']}</div>
+        </div>
+        """
+        st.markdown(tool_html, unsafe_allow_html=True)
+        if st.button("", key=f"{tool['func']}_btn", label_visibility="collapsed"):
+            st.session_state.selected_tool = tool["func"]
+            st.rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # ======================
-    # FEATURES SECTIONS
+    # FEATURES
     # ======================
     st.markdown("---")
 
     # 1. Legal Search
     with st.expander("🔍 بحث قانوني", expanded=False):
-        query = st.text_input("ادخل كلمات البحث:")
+        query = st.text_input("ادخل كلمات البحث:", key="search_query")
         if query:
             try:
                 from legal_database import get_legal_database
@@ -305,7 +491,7 @@ def main():
                 results = db.search_articles(query, limit=10)
                 if results:
                     for result in results:
-                        with st.expander(f"📄 المادة {result['id']}: {result['title']}"):
+                        with st.expander(f"المادة {result['id']}: {result['title']}"):
                             st.markdown(f"**الفئة:** {result['category']}")
                             st.markdown(f"**المحتوى:** {result['content']}")
                 else:
@@ -315,24 +501,24 @@ def main():
 
     # 2. Document Analysis
     with st.expander("📄 تحليل مستندات", expanded=False):
-        uploaded = st.file_uploader("رفع ملف (PDF, DOCX, TXT):", type=["pdf", "docx", "txt"])
+        uploaded = st.file_uploader("رفع ملف (PDF, DOCX, TXT):", type=["pdf", "docx", "txt"], key="doc_upload")
         if uploaded:
             try:
                 from file_processing import process_uploaded_file
                 text = process_uploaded_file(uploaded)
-                st.success("✅ تم استخراج النص!")
-                st.text_area("النص:", text[:2000], height=200)
+                st.success("✅ تم استخراج النص بنجاح!")
+                st.text_area("النص المستخرج:", text[:2000], height=200, key="extracted_text")
             except Exception as e:
                 st.error(f"خطأ: {str(e)}")
 
     # 3. End of Service Calculation
     with st.expander("💰 حساب نهاية الخدمة", expanded=False):
         col1, col2, col3 = st.columns(3)
-        with col1: years = st.number_input("سنوات العمل:", min_value=0.0, value=5.0, step=0.5)
-        with col2: salary = st.number_input("آخر راتب (ريال):", min_value=0, value=10000, step=1000)
-        with col3: reason = st.selectbox("سبب الانتهاء:", ["استقالة", "فصل تعسفي", "تقاعد"])
-        
-        if st.button("📊 احسب"):
+        with col1: years = st.number_input("سنوات العمل:", min_value=0.0, value=5.0, step=0.5, key="yos_years")
+        with col2: salary = st.number_input("آخر راتب (ريال):", min_value=0, value=10000, step=1000, key="yos_salary")
+        with col3: reason = st.selectbox("سبب الانتهاء:", ["استقالة", "فصل تعسفي", "تقاعد"], key="yos_reason")
+
+        if st.button("📊 احسب مستحقاتي", key="calculate_eos"):
             try:
                 from legal_tools import calculate_end_of_service
                 result = calculate_end_of_service(years, salary, reason)
@@ -345,11 +531,11 @@ def main():
 
     # 4. AI Assistant
     with st.expander("🤖 مساعد قانوني ذكي", expanded=True):
-        if st.session_state.get("api_status", {}).get("Groq", {}).get("status") != "✅ متصل":
+        if st.session_state.get("api_status", {}).get("Groq", {}).get("status") != "متصل":
             st.warning("⚠️ قم بتوصيل API أولاً (Groq أو Hugging Face)")
         else:
-            query = st.text_area("اسأل عن أي مسألة قانونية:")
-            if query and st.button("💬 ارسال"):
+            query = st.text_area("اسأل عن أي مسألة قانونية:", key="ai_query", height=150)
+            if query and st.button("💬 ارسال", key="send_query"):
                 with st.spinner("جاري التفكير..."):
                     try:
                         from ai_engine import get_ai_engine
