@@ -314,11 +314,7 @@ if st.session_state.show_panel == "settings_full":
                 "custom_fmt": st.session_state.custom_fmt,
             })
             st.success("... تم حفظ الإعدادات")
-     
-                return "🟢 تم إدخال المفتاح"
-            except Exception as e:
-                return f"🔴 {str(e)}"
-
+ 
         if st.button("حفظ إعدادات الاتصال"):
             storage.save_settings({
                 "preset_name": st.session_state.preset_name,
