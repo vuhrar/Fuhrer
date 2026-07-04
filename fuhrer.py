@@ -287,7 +287,8 @@ if st.session_state.show_panel == "settings_full":
                             headers = {"x-goog-api-key": value}
                             
                         res = requests.get(target_url if target_url else "https://openai.com", headers=headers, timeout=5)
-                        if res.status_code in:
+                        if res.status_code == 200:
+
 
                             return "🟢 متصل"
                         else:
