@@ -221,9 +221,9 @@ if st.session_state.show_panel == "settings_full":
     tabs = st.tabs(["الاتصال بالخادم", "لوحة التحكم", "بيانات الجلسة"])
     with tabs[0]:
     # دالة اختبار اتصال فردي
-         def test_api_connection(api_type, api_value, url=None):
-        try:
-            if api_type == "GROQ":
+        def test_api_connection(api_type, api_value, url=None):
+try:
+        if api_type == "GROQ":
                 from ai_engine import GroqEngine
                 groq = GroqEngine(api_key=api_value)
                 groq.generate("اختبار", max_tokens=5)
