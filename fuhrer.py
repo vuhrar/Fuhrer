@@ -288,6 +288,7 @@ if st.session_state.show_panel == "settings_full":
                             
                         res = requests.get(target_url if target_url else "https://openai.com", headers=headers, timeout=5)
                         if res.status_code in:
+
                             return "🟢 متصل"
                         else:
                             return f"🔴 خطأ {res.status_code}"
