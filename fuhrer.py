@@ -276,16 +276,13 @@ if st.session_state.show_panel == "settings_full":
             if not value:
                 return "⚠️ مفقود"
             try:
-                # الفحص الفعلي لأي نموذج موجود في القائمة عبر ملف ai_engine الخاص بك
                 if hasattr(ai_engine, 'get_preset_info'):
                     preset_info = ai_engine.get_preset_info(api_type)
                     if preset_info:
-                        # جلب مسار الرابط أو المحرك الفعلي للنموذج المختار ديناميكياً
                         target_url = url if url else preset_info.get("url", st.session_state.get("custom_url", ""))
                         
                         import requests
                         headers = {"Authorization": f"Bearer {value}", "Content-Type": "application/json"}
-                        # إضافة كود التعرف على مفاتيح Gemini إذا كان النموذج تابعاً لها
                         if "gemini" in str(api_type).lower() or "google" in str(api_type).lower():
                             headers = {"x-goog-api-key": value}
                             
