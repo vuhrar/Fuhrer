@@ -291,33 +291,7 @@ if st.session_state.show_panel == "settings_full":
             with cols[2]:
                 st.markdown(f"**{st.session_state.get('url_status', '')}**")
 
-            # حقل النموذج + زر + مؤشر
-            cols = st.columns([4, 1, 1])
-            with cols[0]:
-                st.session_state.custom_model = st.text_input("النموذج", value=st.session_state.custom_model, label_visibility="collapsed")
-            with cols[1]:
-                if st.button("إدخال", key="model_btn"):
-                    st.session_state.model_status = "🟢 متصل" if st.session_state.custom_model else "⚠️ مفقود"
-            with cols[2]:
-                st.markdown(f"**{st.session_state.get('model_status', '')}**")
-
-            st.session_state.custom_fmt = st.selectbox("الصيغة", ["openai", "gemini", "anthropic", "huggingface"])
-
-        # حقل مفتاح API + زر + مؤشر
-        cols = st.columns([4, 1, 1])
-        with cols[0]:
-            st.session_state.api_key = st.text_input("مفتاح API", value=st.session_state.api_key, type="password", label_visibility="collapsed")
-        with cols[1]:
-            if st.button("إدخال", key="key_btn"):
-                preset_info = ai_engine.get_preset_info(new_preset)
-                if preset_info.get("requires_key", True):
-                    url = st.session_state.custom_url if new_preset == "⚙️ مخصص" else None
-                    st.session_state.key_status = test_connection(new_preset, st.session_state.api_key, url)
-                else:
-                    st.session_state.key_status = "✅ لا يتطلب مفتاح"
-        with cols[2]:
-            st.markdown(f"**{st.session_state.get('key_status', '')}**")
-
+            # حقل النموذج + زر + 
         if st.button("حفظ إعدادات الاتصال"):
             storage.save_settings({
                 "preset_name": st.session_state.preset_name,
