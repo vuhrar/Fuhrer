@@ -222,7 +222,6 @@ if st.session_state.show_panel == "settings_full":
         with tabs[0]:
     # دالة اختبار اتصال فردي
         def test_api_connection(api_type, api_value, url=None): 
-try:
             if api_type == "GROQ":
                 from ai_engine import GroqEngine
                 groq = GroqEngine(api_key=api_value)
