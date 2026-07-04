@@ -222,43 +222,55 @@ if st.session_state.show_panel == "settings_full":
     with tabs[0]:
         # دالة اختبار اتصال
         def test_connection(api_type, value, url=None):
+            if not value:
+                return "⚠️ مفقود"
+            clean_type = "".join([c for c in str(api_type).upper() if c.isalnum()])
             try:
-                if api_type == "GROQ":
+                if "GROQ" in clean_type:
                     from ai_engine import GroqEngine
                     groq = GroqEngine(api_key=value)
                     groq.generate("اختبار", max_tokens=5)
                     return "🟢 متصل"
-                elif api_type == "HUGGINGFACE":
+                elif "HUGGINGFACE" in clean_type or "HF" in clean_type:
                     from ai_engine import HuggingFaceEngine
                     hf = HuggingFaceEngine(api_token=value)
                     hf.generate("اختبار", max_tokens=5)
                     return "🟢 متصل"
-                elif api_type == "SUPABASE":
+                elif "SUPABASE" in clean_type:
                     from storage import SupabaseStorage
                     supabase = SupabaseStorage(url=url, key=value)
                     supabase.list_files()
                     return "🟢 متصل"
                 else:
                     import requests
-                    target_url = url if url else st.session_state.custom_url
-                    if not target_url:
-                        if "GEMINI" in str(api_type).upper():
-                            target_url = "https://googleapis.com"
-                            headers = {"x-goog-api-key": value}
-                            res = requests.get(target_url, headers=headers, timeout=5)
-                            if res.status_code == 200:
-                                return "🟢 متصل"
-                            else:
-                                return f"🔴 خطأ {res.status_code}"
+                    # فحص حقيقي لـ Gemini باستخدام طلب POST وصيغة محادثة سليمة
+                    if "GEMINI" in clean_type:
+                        target_url = f"https://googleapis.com{value}"
+                        payload = {"contents": [{"parts": [{"text": "test"}]}]}
+                        res = requests.post(target_url, json=payload, timeout=5)
+                        if res.status_code == 200:
+                            return "🟢 متصل"
                         else:
-                            return "⚠️ رابط API مفقود"
+                            return f"🔴 خطأ {res.status_code}: {res.json().get('error', {}).get('message', 'فشل التحقق')}"
                     
-                    headers = {"Authorization": f"Bearer {value}"}
-                    res = requests.get(target_url, headers=headers, timeout=5)
-                    if res.status_code == 200 or res.status_code == 401 or res.status_code == 404:
-                        return "🟢 متصل"
+                    # فحص حقيقي لـ OpenAI أو أي نموذج مخصص متوافق مع صيغتها
                     else:
-                        return f"🔴 خطأ {res.status_code}"
+                        target_url = url if url else "https://openai.com"
+                        if target_url and not target_url.endswith("/completions"):
+                            target_url = f"{target_url.rstrip('/')}/v1/chat/completions"
+                        
+                        headers = {"Authorization": f"Bearer {value}", "Content-Type": "application/json"}
+                        payload = {"model": "gpt-3.5-turbo", "messages": [{"role": "user", "content": "test"}], "max_tokens": 5}
+                        res = requests.post(target_url, json=payload, headers=headers, timeout=5)
+                        
+                        if res.status_code == 200:
+                            return "🟢 متصل"
+                        else:
+                            try:
+                                err_msg = res.json().get('error', {}).get('message', 'فشل الاتصال')
+                                return f"🔴 خطأ {res.status_code}: {err_msg}"
+                            except:
+                                return f"🔴 خطأ {res.status_code}"
             except Exception as e:
                 return f"🔴 {str(e)}"
 
