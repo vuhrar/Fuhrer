@@ -272,45 +272,32 @@ if st.session_state.show_panel == "settings_full":
 
 
         # إعدادات النموذج
-        new_preset = st.selectbox("النموذج", list(ai_engine.PRESETS.keys()),
-            index=list(ai_engine.PRESETS.keys()).index(st.session_state.preset_name)
-            if st.session_state.preset_name in ai_engine.PRESETS else 0)
-        st.session_state.preset_name = new_preset
-
-        if new_preset == "⚙️ مخصص":
-            cols = st.columns([4, 1, 1])
-            with cols[0]:
-                st.session_state.custom_url = st.text_input("رابط API", value=st.session_state.custom_url, label_visibility="collapsed", key="url_input")
-            with cols[1]:
-                if st.button("إدخال", key="url_btn"):
-                    st.session_state.url_status = "🟢 تم الإدخال" if st.session_state.custom_url else "⚠️ مفقود"
-            with cols[2]:
-                st.markdown(f"**{st.session_state.get('url_status', '')}**")
-
-            cols = st.columns([4, 1, 1])
-            with cols[0]:
-                st.session_state.custom_model = st.text_input("النموذج", value=st.session_state.custom_model, label_visibility="collapsed", key="model_input")
-            with cols[1]:
-                if st.button("إدخال", key="model_btn"):
-                    st.session_state.model_status = "🟢 تم الإدخال" if st.session_state.custom_model else "⚠️ مفقود"
-            with cols[2]:
-                st.markdown(f"**{st.session_state.get('model_status', '')}**")
-
-            st.session_state.custom_fmt = st.selectbox("الصيغة", ["openai", "gemini", "anthropic", "huggingface"])
-
-        cols = st.columns([4, 1, 1])
-        with cols[0]:
-            st.session_state.api_key = st.text_input("مفتاح API", value=st.session_state.api_key, type="password", label_visibility="collapsed", key="key_input")
-        with cols[1]:
-            if st.button("إدخال", key="key_btn"):
-                preset_info = ai_engine.get_preset_info(new_preset) if hasattr(ai_engine, 'get_preset_info') else {}
-                if preset_info.get("requires_key", True):
-                    url_to_test = st.session_state.custom_url if new_preset == "⚙️ مخصص" else None
-                    st.session_state.key_status = test_connection(new_preset, st.session_state.api_key, url_to_test)
-                else:
-                    st.session_state.key_status = "✅ لا يتطلب مفتاح"
-        with cols[2]:
-            st.markdown(f"**{st.session_state.get('key_status', '')}**")
+        def test_connection(api_type, value, url=None):
+            if not value:
+                return "⚠️ مفقود"
+            try:
+                # الفحص الفعلي لأي نموذج موجود في القائمة عبر ملف ai_engine الخاص بك
+                if hasattr(ai_engine, 'get_preset_info'):
+                    preset_info = ai_engine.get_preset_info(api_type)
+                    if preset_info:
+                        # جلب مسار الرابط أو المحرك الفعلي للنموذج المختار ديناميكياً
+                        target_url = url if url else preset_info.get("url", st.session_state.get("custom_url", ""))
+                        
+                        import requests
+                        headers = {"Authorization": f"Bearer {value}", "Content-Type": "application/json"}
+                        # إضافة كود التعرف على مفاتيح Gemini إذا كان النموذج تابعاً لها
+                        if "gemini" in str(api_type).lower() or "google" in str(api_type).lower():
+                            headers = {"x-goog-api-key": value}
+                            
+                        res = requests.get(target_url if target_url else "https://openai.com", headers=headers, timeout=5)
+                        if res.status_code in:
+                            return "🟢 متصل"
+                        else:
+                            return f"🔴 خطأ {res.status_code}"
+                
+                return "🟢 تم إدخال المفتاح"
+            except Exception as e:
+                return f"🔴 {str(e)}"
 
         if st.button("حفظ إعدادات الاتصال"):
             storage.save_settings({
