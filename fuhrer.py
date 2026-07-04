@@ -291,23 +291,6 @@ if st.session_state.show_panel == "settings_full":
             with cols[2]:
                 st.markdown(f"**{st.session_state.get('url_status', '')}**")
 
-            # حقل النموذج + زر + 
-        if st.button("حفظ إعدادات الاتصال"):
-            storage.save_settings({
-                "preset_name": st.session_state.preset_name,
-                "custom_url": st.session_state.custom_url,
-                "custom_model": st.session_state.custom_model,
-                "custom_fmt": st.session_state.custom_fmt,
-            })
-            st.success("... تم حفظ الإعدادات")
- 
-        if st.button("حفظ إعدادات الاتصال"):
-            storage.save_settings({
-                "preset_name": st.session_state.preset_name,
-                "custom_url": st.session_state.custom_url,
-                "custom_model": st.session_state.custom_model,
-                "custom_fmt": st.session_state.custom_fmt,
-            })
             st.success("✅ تم حفظ الإعدادات")
     with tabs[1]:
         sessions = storage.list_sessions()
