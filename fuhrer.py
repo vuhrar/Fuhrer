@@ -243,13 +243,30 @@ if st.session_state.show_panel == "settings_full":
                     return "🟢 متصل"
                 else:
                     import requests
-                    target_url = url if url else "https://openai.com"
-                    headers = {"Authorization": f"Bearer {value}"}
-                    res = requests.get(target_url, headers=headers, timeout=5)
-                    if res.status_code in:
+                    target_url = url if url else st.session_state.get("custom_url", "")
+                    model_name = st.session_state.get("custom_model", "gpt-3.5-turbo")
+                    fmt = st.session_state.get("custom_fmt", "openai").lower()
+                    
+                    if not target_url:
+                        return "⚠️ رابط الـ API مفقود"
+                        
+                    headers = {"Authorization": f"Bearer {value}", "Content-Type": "application/json"}
+                    
+                    if fmt == "openai":
+                        payload = {"model": model_name, "messages": [{"role": "user", "content": "test"}], "max_tokens": 5}
+                        endpoint = target_url if "/chat/completions" in target_url else f"{target_url.rstrip('/')}/v1/chat/completions"
+                    elif fmt == "huggingface":
+                        payload = {"inputs": "test", "parameters": {"max_new_tokens": 5}}
+                        endpoint = target_url
+                    else:
+                        payload = {"model": model_name, "prompt": "test", "max_tokens": 5}
+                        endpoint = target_url
+
+                    res = requests.post(endpoint, json=payload, headers=headers, timeout=8)
+                    if res.status_code == 200:
                         return "🟢 متصل"
                     else:
-                        return f"🔴 خطأ {res.status_code}"
+                        return f"🔴 خطأ {res.status_code}: {res.text[:30]}"
             except Exception as e:
                 return f"🔴 {str(e)}"
 
