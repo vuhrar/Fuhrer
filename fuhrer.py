@@ -278,38 +278,35 @@ if st.session_state.show_panel == "settings_full":
         st.session_state.preset_name = new_preset
 
         if new_preset == "⚙️ مخصص":
-            # حقل رابط API + زر + مؤشر
             cols = st.columns([4, 1, 1])
             with cols[0]:
-                st.session_state.custom_url = st.text_input("رابط API", value=st.session_state.custom_url, label_visibility="collapsed")
+                st.session_state.custom_url = st.text_input("رابط API", value=st.session_state.custom_url, label_visibility="collapsed", key="url_input")
             with cols[1]:
                 if st.button("إدخال", key="url_btn"):
-                    st.session_state.url_status = "🟢 متصل" if st.session_state.custom_url else "⚠️ مفقود"
+                    st.session_state.url_status = "🟢 تم الإدخال" if st.session_state.custom_url else "⚠️ مفقود"
             with cols[2]:
                 st.markdown(f"**{st.session_state.get('url_status', '')}**")
 
-            # حقل النموذج + زر + مؤشر
             cols = st.columns([4, 1, 1])
             with cols[0]:
-                st.session_state.custom_model = st.text_input("النموذج", value=st.session_state.custom_model, label_visibility="collapsed")
+                st.session_state.custom_model = st.text_input("النموذج", value=st.session_state.custom_model, label_visibility="collapsed", key="model_input")
             with cols[1]:
                 if st.button("إدخال", key="model_btn"):
-                    st.session_state.model_status = "🟢 متصل" if st.session_state.custom_model else "⚠️ مفقود"
+                    st.session_state.model_status = "🟢 تم الإدخال" if st.session_state.custom_model else "⚠️ مفقود"
             with cols[2]:
                 st.markdown(f"**{st.session_state.get('model_status', '')}**")
 
             st.session_state.custom_fmt = st.selectbox("الصيغة", ["openai", "gemini", "anthropic", "huggingface"])
 
-        # حقل مفتاح API + زر + مؤشر
         cols = st.columns([4, 1, 1])
         with cols[0]:
-            st.session_state.api_key = st.text_input("مفتاح API", value=st.session_state.api_key, type="password", label_visibility="collapsed")
+            st.session_state.api_key = st.text_input("مفتاح API", value=st.session_state.api_key, type="password", label_visibility="collapsed", key="key_input")
         with cols[1]:
             if st.button("إدخال", key="key_btn"):
-                preset_info = ai_engine.get_preset_info(new_preset)
+                preset_info = ai_engine.get_preset_info(new_preset) if hasattr(ai_engine, 'get_preset_info') else {}
                 if preset_info.get("requires_key", True):
-                    url = st.session_state.custom_url if new_preset == "⚙️ مخصص" else None
-                    st.session_state.key_status = test_connection(new_preset, st.session_state.api_key, url)
+                    url_to_test = st.session_state.custom_url if new_preset == "⚙️ مخصص" else None
+                    st.session_state.key_status = test_connection(new_preset, st.session_state.api_key, url_to_test)
                 else:
                     st.session_state.key_status = "✅ لا يتطلب مفتاح"
         with cols[2]:
