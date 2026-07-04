@@ -222,78 +222,99 @@ if st.session_state.show_panel == "settings_full":
     with tabs[0]:
         # دالة اختبار اتصال
         def test_connection(api_type, value, url=None):
-            if not value:
-                return "⚠️ مفقود"
-            clean_type = "".join([c for c in str(api_type).upper() if c.isalnum()])
             try:
-                if "GROQ" in clean_type:
+                if api_type == "GROQ":
                     from ai_engine import GroqEngine
                     groq = GroqEngine(api_key=value)
                     groq.generate("اختبار", max_tokens=5)
                     return "🟢 متصل"
-                elif "HUGGINGFACE" in clean_type or "HF" in clean_type:
+                elif api_type == "HUGGINGFACE":
                     from ai_engine import HuggingFaceEngine
                     hf = HuggingFaceEngine(api_token=value)
                     hf.generate("اختبار", max_tokens=5)
                     return "🟢 متصل"
-                elif "SUPABASE" in clean_type:
+                elif api_type == "SUPABASE":
                     from storage import SupabaseStorage
                     supabase = SupabaseStorage(url=url, key=value)
                     supabase.list_files()
                     return "🟢 متصل"
                 else:
                     import requests
-                    target_url = url if url else st.session_state.get("custom_url", "")
-                    model_name = st.session_state.get("custom_model", "gpt-3.5-turbo")
-                    fmt = st.session_state.get("custom_fmt", "openai").lower()
-                    
+                    target_url = url if url else st.session_state.custom_url
                     if not target_url:
-                        return "⚠️ رابط الـ API مفقود"
-                        
-                    headers = {"Authorization": f"Bearer {value}", "Content-Type": "application/json"}
+                        if "GEMINI" in str(api_type).upper():
+                            target_url = "https://googleapis.com"
+                            headers = {"x-goog-api-key": value}
+                            res = requests.get(target_url, headers=headers, timeout=5)
+                            if res.status_code == 200:
+                                return "🟢 متصل"
+                            else:
+                                return f"🔴 خطأ {res.status_code}"
+                        else:
+                            return "⚠️ رابط API مفقود"
                     
-                    if fmt == "openai":
-                        payload = {"model": model_name, "messages": [{"role": "user", "content": "test"}], "max_tokens": 5}
-                        endpoint = target_url if "/chat/completions" in target_url else f"{target_url.rstrip('/')}/v1/chat/completions"
-                    elif fmt == "huggingface":
-                        payload = {"inputs": "test", "parameters": {"max_new_tokens": 5}}
-                        endpoint = target_url
-                    else:
-                        payload = {"model": model_name, "prompt": "test", "max_tokens": 5}
-                        endpoint = target_url
-
-                    res = requests.post(endpoint, json=payload, headers=headers, timeout=8)
-                    if res.status_code == 200:
+                    headers = {"Authorization": f"Bearer {value}"}
+                    res = requests.get(target_url, headers=headers, timeout=5)
+                    if res.status_code == 200 or res.status_code == 401 or res.status_code == 404:
                         return "🟢 متصل"
                     else:
-                        return f"🔴 خطأ {res.status_code}: {res.text[:30]}"
+                        return f"🔴 خطأ {res.status_code}"
             except Exception as e:
                 return f"🔴 {str(e)}"
 
-
         # إعدادات النموذج
-        def test_connection(api_type, value, url=None):
-            if not value:
-                return "⚠️ مفقود"
-            try:
-                if hasattr(ai_engine, 'get_preset_info'):
-                    preset_info = ai_engine.get_preset_info(api_type)
-                    if preset_info:
-                        target_url = url if url else preset_info.get("url", st.session_state.get("custom_url", ""))
-                        
-                        import requests
-                        headers = {"Authorization": f"Bearer {value}", "Content-Type": "application/json"}
-                        if "gemini" in str(api_type).lower() or "google" in str(api_type).lower():
-                            headers = {"x-goog-api-key": value}
-                            
-                        res = requests.get(target_url if target_url else "https://openai.com", headers=headers, timeout=5)
-                        if res.status_code == 200:
+        new_preset = st.selectbox("النموذج", list(ai_engine.PRESETS.keys()),
+            index=list(ai_engine.PRESETS.keys()).index(st.session_state.preset_name)
+            if st.session_state.preset_name in ai_engine.PRESETS else 0)
+        st.session_state.preset_name = new_preset
 
+        if new_preset == "⚙️ مخصص":
+            # حقل رابط API + زر + مؤشر
+            cols = st.columns([4, 1, 1])
+            with cols[0]:
+                st.session_state.custom_url = st.text_input("رابط API", value=st.session_state.custom_url, label_visibility="collapsed")
+            with cols[1]:
+                if st.button("إدخال", key="url_btn"):
+                    st.session_state.url_status = "🟢 متصل" if st.session_state.custom_url else "⚠️ مفقود"
+            with cols[2]:
+                st.markdown(f"**{st.session_state.get('url_status', '')}**")
 
-                            return "🟢 متصل"
-                        else:
-                            return f"🔴 خطأ {res.status_code}"
-                
+            # حقل النموذج + زر + مؤشر
+            cols = st.columns([4, 1, 1])
+            with cols[0]:
+                st.session_state.custom_model = st.text_input("النموذج", value=st.session_state.custom_model, label_visibility="collapsed")
+            with cols[1]:
+                if st.button("إدخال", key="model_btn"):
+                    st.session_state.model_status = "🟢 متصل" if st.session_state.custom_model else "⚠️ مفقود"
+            with cols[2]:
+                st.markdown(f"**{st.session_state.get('model_status', '')}**")
+
+            st.session_state.custom_fmt = st.selectbox("الصيغة", ["openai", "gemini", "anthropic", "huggingface"])
+
+        # حقل مفتاح API + زر + مؤشر
+        cols = st.columns([4, 1, 1])
+        with cols[0]:
+            st.session_state.api_key = st.text_input("مفتاح API", value=st.session_state.api_key, type="password", label_visibility="collapsed")
+        with cols[1]:
+            if st.button("إدخال", key="key_btn"):
+                preset_info = ai_engine.get_preset_info(new_preset)
+                if preset_info.get("requires_key", True):
+                    url = st.session_state.custom_url if new_preset == "⚙️ مخصص" else None
+                    st.session_state.key_status = test_connection(new_preset, st.session_state.api_key, url)
+                else:
+                    st.session_state.key_status = "✅ لا يتطلب مفتاح"
+        with cols[2]:
+            st.markdown(f"**{st.session_state.get('key_status', '')}**")
+
+        if st.button("حفظ إعدادات الاتصال"):
+            storage.save_settings({
+                "preset_name": st.session_state.preset_name,
+                "custom_url": st.session_state.custom_url,
+                "custom_model": st.session_state.custom_model,
+                "custom_fmt": st.session_state.custom_fmt,
+            })
+            st.success("... تم حفظ الإعدادات")
+     
                 return "🟢 تم إدخال المفتاح"
             except Exception as e:
                 return f"🔴 {str(e)}"
