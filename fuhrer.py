@@ -220,67 +220,70 @@ if st.session_state.show_panel == "settings_full":
     st.markdown("<div class='section-title'>الإعدادات والاتصال</div>", unsafe_allow_html=True)
     tabs = st.tabs(["الاتصال بالخادم", "لوحة التحكم", "بيانات الجلسة"])
     with tabs[0]:
-        # دالة اختبار اتصال فردي
-        def test_api_connection(api_type, api_value, url=None):
+        # دالة اختبار اتصال
+        def test_connection(api_type, value, url=None):
             try:
                 if api_type == "GROQ":
                     from ai_engine import GroqEngine
-                    groq = GroqEngine(api_key=api_value)
+                    groq = GroqEngine(api_key=value)
                     groq.generate("اختبار", max_tokens=5)
                     return "🟢 متصل"
                 elif api_type == "HUGGINGFACE":
                     from ai_engine import HuggingFaceEngine
-                    hf = HuggingFaceEngine(api_token=api_value)
+                    hf = HuggingFaceEngine(api_token=value)
                     hf.generate("اختبار", max_tokens=5)
                     return "🟢 متصل"
                 elif api_type == "SUPABASE":
                     from storage import SupabaseStorage
-                    supabase = SupabaseStorage(url=url, key=api_value)
+                    supabase = SupabaseStorage(url=url, key=value)
                     supabase.list_files()
                     return "🟢 متصل"
             except Exception as e:
-                error_code = str(e).split()[0] if str(e).split() else "خطأ"
-                return f"🔴 {error_code}"
+                return f"🔴 {str(e).split()[0] if str(e).split() else 'خطأ'}"
 
+        # إعدادات النموذج
         new_preset = st.selectbox("النموذج", list(ai_engine.PRESETS.keys()),
             index=list(ai_engine.PRESETS.keys()).index(st.session_state.preset_name)
             if st.session_state.preset_name in ai_engine.PRESETS else 0)
         st.session_state.preset_name = new_preset
 
         if new_preset == "⚙️ مخصص":
-            cols = st.columns([4, 1])
+            # حقل رابط API + زر + مؤشر
+            cols = st.columns([4, 1, 1])
             with cols[0]:
                 st.session_state.custom_url = st.text_input("رابط API", value=st.session_state.custom_url, label_visibility="collapsed")
             with cols[1]:
-                if st.button("إدخال", key="custom_url_btn"):
-                    st.session_state.custom_url_status = "🟢 متصل" if st.session_state.custom_url else "⚠️ مفقود"
-            if "custom_url_status" in st.session_state:
-                st.markdown(f"**{st.session_state.custom_url_status}**")
+                if st.button("إدخال", key="url_btn"):
+                    st.session_state.url_status = "🟢 متصل" if st.session_state.custom_url else "⚠️ مفقود"
+            with cols[2]:
+                st.markdown(f"**{st.session_state.get('url_status', '')}**")
 
-            cols = st.columns([4, 1])
+            # حقل النموذج + زر + مؤشر
+            cols = st.columns([4, 1, 1])
             with cols[0]:
                 st.session_state.custom_model = st.text_input("النموذج", value=st.session_state.custom_model, label_visibility="collapsed")
             with cols[1]:
-                if st.button("إدخال", key="custom_model_btn"):
-                    st.session_state.custom_model_status = "🟢 متصل" if st.session_state.custom_model else "⚠️ مفقود"
-            if "custom_model_status" in st.session_state:
-                st.markdown(f"**{st.session_state.custom_model_status}**")
+                if st.button("إدخال", key="model_btn"):
+                    st.session_state.model_status = "🟢 متصل" if st.session_state.custom_model else "⚠️ مفقود"
+            with cols[2]:
+                st.markdown(f"**{st.session_state.get('model_status', '')}**")
 
             st.session_state.custom_fmt = st.selectbox("الصيغة", ["openai", "gemini", "anthropic", "huggingface"])
 
-        cols = st.columns([4, 1])
+        # حقل مفتاح API + زر + مؤشر
+        cols = st.columns([4, 1, 1])
         with cols[0]:
             st.session_state.api_key = st.text_input("مفتاح API", value=st.session_state.api_key, type="password", label_visibility="collapsed")
         with cols[1]:
-            if st.button("إدخال", key="api_key_btn"):
+            if st.button("إدخال", key="key_btn"):
                 preset_info = ai_engine.get_preset_info(new_preset)
                 if preset_info.get("requires_key", True):
-                    st.session_state.api_key_status = test_api_connection(new_preset, st.session_state.api_key,
-                        st.session_state.custom_url if new_preset == "⚙️ مخصص" else None)
+                    url = st.session_state.custom_url if new_preset == "⚙️ مخصص" else None
+                    st.session_state.key_status = test_connection(new_preset, st.session_state.api_key, url)
                 else:
-                    st.session_state.api_key_status = "✅ لا يتطلب مفتاح"
-        if "api_key_status" in st.session_state:
-            st.markdown(f"**{st.session_state.api_key_status}**")
+                    st.session_state.key_status = "✅ لا يتطلب مفتاح"
+        with cols[2]:
+            st.markdown(f"**{st.session_state.get('key_status', '')}**")
 
         if st.button("حفظ إعدادات الاتصال"):
             storage.save_settings({
