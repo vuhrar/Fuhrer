@@ -222,24 +222,37 @@ if st.session_state.show_panel == "settings_full":
     with tabs[0]:
         # دالة اختبار اتصال
         def test_connection(api_type, value, url=None):
+            if not value:
+                return "⚠️ مفقود"
+            clean_type = "".join([c for c in str(api_type).upper() if c.isalnum()])
             try:
-                if api_type == "GROQ":
+                if "GROQ" in clean_type:
                     from ai_engine import GroqEngine
                     groq = GroqEngine(api_key=value)
                     groq.generate("اختبار", max_tokens=5)
                     return "🟢 متصل"
-                elif api_type == "HUGGINGFACE":
+                elif "HUGGINGFACE" in clean_type or "HF" in clean_type:
                     from ai_engine import HuggingFaceEngine
                     hf = HuggingFaceEngine(api_token=value)
                     hf.generate("اختبار", max_tokens=5)
                     return "🟢 متصل"
-                elif api_type == "SUPABASE":
+                elif "SUPABASE" in clean_type:
                     from storage import SupabaseStorage
                     supabase = SupabaseStorage(url=url, key=value)
                     supabase.list_files()
                     return "🟢 متصل"
+                else:
+                    import requests
+                    target_url = url if url else "https://openai.com"
+                    headers = {"Authorization": f"Bearer {value}"}
+                    res = requests.get(target_url, headers=headers, timeout=5)
+                    if res.status_code in:
+                        return "🟢 متصل"
+                    else:
+                        return f"🔴 خطأ {res.status_code}"
             except Exception as e:
-                return f"🔴 {str(e).split()[0] if str(e).split() else 'خطأ'}"
+                return f"🔴 {str(e)}"
+
 
         # إعدادات النموذج
         new_preset = st.selectbox("النموذج", list(ai_engine.PRESETS.keys()),
