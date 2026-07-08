@@ -8,6 +8,7 @@ import legal_tools
 from legal_tools_advanced import entitlements_calculator, deadlines_tracker, slip_detector, case_analyzer, legal_classifier
 
 CSS = """
+<style>
 @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
 *, *::before, *::after { box-sizing: border-box !important; font-family: 'Tajawal', sans-serif !important; }
 html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"],
@@ -130,6 +131,7 @@ html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"]
 .legal-search-result .title { font-weight: 700; color: #c9a84c; margin-bottom: 4px; }
 .legal-search-result .snippet { color: #aaaaaa; font-size: 0.9rem; line-height: 1.6; }
 .legal-search-result .meta { font-size: 0.8rem; color: #666; margin-top: 6px; }
+</style>
 """
 
 def render_persona_selection():
