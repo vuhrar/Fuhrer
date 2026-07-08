@@ -6,16 +6,24 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import streamlit as st
 from datetime import datetime
 from dotenv import load_dotenv
-
 load_dotenv()
 
+import ai_engine
+import analysis_engine
+import legal_tools
+import file_processing
+import storage
+from legal_tools_advanced import (
+    legal_classifier, legal_search, rebuttal_generator,
+    document_generator, entitlements_calculator,
+    deadlines_tracker, slip_detector, case_analyzer, info_extractor
+)
+from legal_database import get_legal_database
+
+# استيراد وحداتنا المقسمة
 import ui
 import api
 import tools
-import ai_engine
-import storage
-from legal_tools_advanced import legal_classifier, legal_search, rebuttal_generator, document_generator, entitlements_calculator, deadlines_tracker, slip_detector, case_analyzer, info_extractor
-from legal_database import get_legal_database
 
 st.set_page_config(
     page_title="Führer",
@@ -24,8 +32,10 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# تطبيق CSS
 st.markdown(ui.CSS, unsafe_allow_html=True)
 
+# تهيئة الحالة
 _saved = storage.load_settings()
 _defaults = {
     "persona": None,
@@ -47,6 +57,7 @@ for k, v in _defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
+# زر الإعدادات
 corner_col = st.columns([8, 1])[1]
 with corner_col:
     if st.button("⚙️", key="corner_settings"):
@@ -55,12 +66,13 @@ with corner_col:
         )
         st.rerun()
 
+# اسم التطبيق
 st.markdown("<div class='app-title'>Führer</div>", unsafe_allow_html=True)
 st.markdown("<p class='sub-text' style='text-align:center;margin-top:-10px;'>النظام القانوني الذكي للقانون العمالي السعودي</p>",
             unsafe_allow_html=True)
 
+# لوحة الإعدادات (نفس الأصل)
 if st.session_state.show_panel == "settings_full":
-    # (يمكن نقل هذا القسم إلى ui لاحقاً، لكنه موجود هنا كما في الأصل)
     st.markdown("<div class='section-title'>الإعدادات والاتصال</div>", unsafe_allow_html=True)
     tabs = st.tabs(["الاتصال بالخادم", "لوحة التحكم", "بيانات الجلسة"])
     with tabs[0]:
@@ -106,6 +118,7 @@ if st.session_state.show_panel == "settings_full":
                 st.rerun()
     st.markdown("---")
 
+# شاشة اختيار الشخصية
 if st.session_state.persona is None:
     ui.render_persona_selection()
 else:
