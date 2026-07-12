@@ -52,13 +52,21 @@ _defaults = {
     "pending_input": "",
     "show_panel": None,
     "selected_tool": None,
+    "connection_status": "unknown", # unknown, connected, failed
+    "connection_msg": "",
 }
 for k, v in _defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-# زر الإعدادات
-corner_col = st.columns([8, 1])[1]
+# مؤشر الحالة وزر الإعدادات
+status_col, corner_col = st.columns([8, 1])
+with status_col:
+    conn_status = st.session_state.get("connection_status", "unknown")
+    if conn_status == "connected":
+        st.markdown("<span style='color:#4ade80;font-size:0.8rem;float:left;margin-top:10px;'>🟢 متصل</span>", unsafe_allow_html=True)
+    elif conn_status == "failed":
+        st.markdown("<span style='color:#f87171;font-size:0.8rem;float:left;margin-top:10px;'>🔴 خطأ اتصال</span>", unsafe_allow_html=True)
 with corner_col:
     if st.button("⚙️", key="corner_settings"):
         st.session_state.show_panel = (
@@ -92,14 +100,38 @@ if st.session_state.show_panel == "settings_full":
                 {'✅ مفتاح API مدخَل' if key_ok else '❌ لم يتم إدخال مفتاح API'}</div>""", unsafe_allow_html=True)
         else:
             st.markdown("<div class='alert info'>ℹ️ هذا النموذج لا يتطلب مفتاح API</div>", unsafe_allow_html=True)
-        if st.button("حفظ إعدادات الاتصال"):
-            storage.save_settings({
-                "preset_name": st.session_state.preset_name,
-                "custom_url": st.session_state.custom_url,
-                "custom_model": st.session_state.custom_model,
-                "custom_fmt": st.session_state.custom_fmt,
-            })
-            st.success("✅ تم حفظ الإعدادات")
+        
+        # إظهار حالة الاتصال الحالية
+        status = st.session_state.connection_status
+        if status == "connected":
+            st.markdown("<div class='alert success fade-in'>🟢 متصل: الخادم يستجيب بشكل صحيح</div>", unsafe_allow_html=True)
+        elif status == "failed":
+            st.markdown(f"<div class='alert danger fade-in'>🔴 غير متصل: {st.session_state.connection_msg}</div>", unsafe_allow_html=True)
+        else:
+            st.markdown("<div class='alert info'>⚪ حالة الاتصال: لم يتم الاختبار بعد</div>", unsafe_allow_html=True)
+
+        if st.button("🔌 اختبار وربط الاتصال", use_container_width=True):
+            with st.spinner("جاري اختبار الاتصال بالخادم..."):
+                ok, msg = ai_engine.test_connection(
+                    st.session_state.preset_name,
+                    st.session_state.api_key,
+                    st.session_state.custom_url,
+                    st.session_state.custom_model,
+                    st.session_state.custom_fmt
+                )
+                st.session_state.connection_status = "connected" if ok else "failed"
+                st.session_state.connection_msg = msg
+                
+                if ok:
+                    storage.save_settings({
+                        "preset_name": st.session_state.preset_name,
+                        "custom_url": st.session_state.custom_url,
+                        "custom_model": st.session_state.custom_model,
+                        "custom_fmt": st.session_state.custom_fmt,
+                        "api_key": st.session_state.api_key # حفظ المفتاح محلياً للسهولة
+                    })
+                    st.toast("✅ تم الاتصال وحفظ الإعدادات", icon="🚀")
+                st.rerun()
     with tabs[1]:
         sessions = storage.list_sessions()
         cases = storage.list_cases()

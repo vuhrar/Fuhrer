@@ -423,3 +423,34 @@ def get_all_models_grouped() -> Dict[str, List[Dict]]:
 def preset_names() -> List[str]:
     """قائمة بأسماء جميع النماذج."""
     return list(PRESETS.keys())
+
+
+def test_connection(preset_name: str, api_key: str, custom_url: str = "", custom_model: str = "", custom_fmt: str = "openai") -> tuple[bool, str]:
+    """
+    اختبار الاتصال الفعلي بـ API.
+    يعيد: (bool: نجاح/فشل, str: رسالة توضيحية)
+    """
+    if not api_key.strip() and PRESETS.get(preset_name) and PRESETS[preset_name].requires_key:
+        return False, "❌ مفتاح API مفقود."
+
+    try:
+        # إرسال طلب بسيط جداً للتحقق
+        test_prompt = "ping"
+        # إذا كان مخصصاً، نستخدم المعاملات الممررة
+        if preset_name == "⚙️ مخصص":
+            # إنشاء كائن preset مؤقت للاختبار
+            from ai_engine import AIPreset
+            preset = AIPreset(
+                name="Test", url=custom_url, model=custom_model, fmt=custom_fmt,
+                free=False, requires_key=True
+            )
+            response = call_ai(test_prompt, [], "respond with 'pong'", preset=preset, api_key=api_key)
+        else:
+            response = call_ai(test_prompt, [], "respond with 'pong'", preset_name=preset_name, api_key=api_key)
+
+        if "❌" in response or "⏳" in response or "🔑" in response or "🔗" in response:
+            return False, response
+        
+        return True, "✅ تم الاتصال بنجاح! الخادم يستجيب."
+    except Exception as e:
+        return False, f"❌ فشل الاتصال: {str(e)}"

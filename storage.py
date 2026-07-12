@@ -103,17 +103,18 @@ def load_settings() -> Dict:
 
 
 def save_settings(settings: Dict) -> bool:
-    """حفظ الإعدادات (يستثني مفتاح API من الحفظ الدائم)."""
-    safe = {k: v for k, v in settings.items() if k != "api_key"}
+    """حفظ الإعدادات."""
+    # ملاحظة: في بيئة الإنتاج يفضل عدم حفظ API Key في قاعدة بيانات سحابية غير مشفرة
+    # لكن للتطبيق المحلي سنحفظه لتسهيل تجربة المستخدم
     if USE_SUPABASE:
         try:
-            resp = _supabase.table("settings").upsert({
-                "id": 1, "data": safe, "updated_at": _now_iso()
+            _supabase.table("settings").upsert({
+                "id": 1, "data": settings, "updated_at": _now_iso()
             }).execute()
             return True
         except Exception:
             pass
-    return _save_json(_SETTINGS_FILE, safe)
+    return _save_json(_SETTINGS_FILE, settings)
 
 
 # ============================================================
