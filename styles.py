@@ -9,8 +9,8 @@ MAIN_CSS = """
 :root {
     --bg-primary:    #0a0f1e;
     --bg-secondary:  #111827;
-    --bg-card:       #1a2235;
-    --bg-hover:      #1e2d45;
+    --bg-card:       #d1d5db; /* رمادي فاتح للخانات */
+    --bg-hover:      #e5e7eb;
     --accent-blue:   #4a9eff;
     --accent-gold:   #f59e0b;
     --accent-green:  #4ade80;
@@ -64,9 +64,10 @@ html, body, [data-testid="stAppViewContainer"] {
 .stTextArea > div > div > textarea,
 .stNumberInput > div > div > input {
     background-color: var(--bg-card) !important;
-    color: var(--text-primary) !important;
-    border: 1px solid var(--border) !important;
+    color: #ffffff !important; /* خط أبيض */
+    border: 1px solid #9ca3af !important;
     border-radius: var(--radius-sm) !important;
+    font-weight: 500 !important;
 }
 
 .stTextInput > div > div > input:focus,
@@ -128,9 +129,11 @@ html, body, [data-testid="stAppViewContainer"] {
 
 .logo-container { text-align: center; padding: 20px 0 10px; }
 .logo-title {
-    font-size: 2rem; font-weight: 800;
-    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    font-size: 4rem; font-weight: 900; /* تكبير الشعار للضعف */
+    background: linear-gradient(135deg, #ffffff, var(--accent-blue));
     -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    text-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    letter-spacing: -2px;
 }
 .logo-subtitle { font-size: 0.8rem; color: var(--text-muted); letter-spacing: 2px; }
 
@@ -141,7 +144,12 @@ html, body, [data-testid="stAppViewContainer"] {
 .chat-bubble.assistant { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-primary); }
 
 .stTabs [data-baseweb="tab-list"] {
-    background: var(--bg-card) !important; border-radius: var(--radius-sm) !important; gap: 4px; padding: 4px;
+    background: #ffffff !important; /* شريط أبيض */
+    border-radius: var(--radius-sm) !important; gap: 4px; padding: 4px;
+    border: 1px solid #e5e7eb !important;
+}
+.stTabs [data-baseweb="tab"] {
+    color: #4b5563 !important; /* خط رمادي غامق للشريط الأبيض */
 }
 .stTabs [data-baseweb="tab"]  { background: transparent !important; color: var(--text-secondary) !important; border-radius: var(--radius-sm) !important; }
 .stTabs [aria-selected="true"] { background: var(--accent-blue) !important; color: #fff !important; }
