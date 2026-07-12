@@ -106,7 +106,9 @@ if st.session_state.show_panel == "settings_full":
         if status == "connected":
             st.markdown("<div class='alert success fade-in'>🟢 متصل: الخادم يستجيب بشكل صحيح</div>", unsafe_allow_html=True)
         elif status == "failed":
-            st.markdown(f"<div class='alert danger fade-in'>🔴 غير متصل: {st.session_state.connection_msg}</div>", unsafe_allow_html=True)
+            st.markdown("<div class='alert danger fade-in'>🔴 فشل الاتصال الحقيقي بالخادم:</div>", unsafe_allow_html=True)
+            st.code(st.session_state.connection_msg, language="json")
+            st.info("💡 نصيحة: إذا كانت الرسالة أعلاه تشير إلى (429) أو (Rate Limit)، فهذا يعني أنك تجاوزت حد الطلبات المجانية للمزود. جرب مفتاحاً آخر أو انتظر قليلاً.")
         else:
             st.markdown("<div class='alert info'>⚪ حالة الاتصال: لم يتم الاختبار بعد</div>", unsafe_allow_html=True)
 

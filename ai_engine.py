@@ -137,8 +137,15 @@ def _post_json(url: str, payload: dict, headers: dict, timeout: int = 90) -> dic
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
-        body = e.read().decode(errors="ignore")[:1000]
-        raise RuntimeError(f"HTTP {e.code}: {body}")
+        body = e.read().decode(errors="ignore")
+        # محاولة فك ترميز JSON للخطأ إذا كان متاحاً
+        try:
+            err_json = json.loads(body)
+            error_msg = json.dumps(err_json, ensure_ascii=False, indent=2)
+        except:
+            error_msg = body[:1000]
+            
+        raise RuntimeError(f"خطأ HTTP {e.code} من الخادم:\n{error_msg}")
     except urllib.error.URLError as e:
         raise RuntimeError(f"URLError: {e.reason}")
     except TimeoutError:
@@ -351,22 +358,15 @@ def call_ai(
 
     except RuntimeError as e:
         err = str(e)
-        logger.error(f"AI call error: {err[:200]}")
-        if "429" in err:
-            return "⏳ تجاوزت الحد المسموح به من الطلبات (Rate Limit). انتظر دقيقة ثم حاول مجدداً."
-        if "401" in err or "403" in err:
-            return "🔑 مفتاح API غير صحيح أو منتهي الصلاحية. تحقق منه في الإعدادات."
-        if "404" in err:
-            return f"🔗 رابط API غير صحيح أو النموذج غير متاح:\n`{preset.url}`"
-        if "503" in err or "502" in err:
-            return "🔧 الخادم غير متاح مؤقتاً. حاول مرة أخرى بعد قليل."
-        return f"❌ خطأ في الاتصال:\n{err[:500]}"
+        logger.error(f"AI call error: {err}")
+        # إظهار الخطأ الخام الحقيقي للمستخدم لضمان الشفافية والتشخيص الصحيح
+        return f"❌ خطأ من الخادم (API Error):\n{err}"
     except KeyError as e:
         logger.error(f"Parse error: missing key {e}")
-        return f"❌ استجابة غير متوقعة من الخادم (مفتاح مفقود: {e}). قد يكون النموذج تغيّر."
+        return f"❌ خطأ في معالجة البيانات: المفتاح {e} مفقود في استجابة الخادم."
     except Exception as e:
-        logger.error(f"Unexpected error: {str(e)[:300]}")
-        return f"❌ خطأ غير متوقع: {str(e)[:400]}"
+        logger.error(f"Unexpected error: {str(e)}")
+        return f"❌ خطأ تقني غير متوقع:\n{str(e)}"
 
 
 # ============================================================
@@ -436,17 +436,17 @@ def test_connection(preset_name: str, api_key: str, custom_url: str = "", custom
     try:
         # إرسال طلب بسيط جداً للتحقق
         test_prompt = "ping"
-        # إذا كان مخصصاً، نستخدم المعاملات الممررة
-        if preset_name == "⚙️ مخصص":
-            # إنشاء كائن preset مؤقت للاختبار
-            from ai_engine import AIPreset
-            preset = AIPreset(
-                name="Test", url=custom_url, model=custom_model, fmt=custom_fmt,
-                free=False, requires_key=True
-            )
-            response = call_ai(test_prompt, [], "respond with 'pong'", preset=preset, api_key=api_key)
-        else:
-            response = call_ai(test_prompt, [], "respond with 'pong'", preset_name=preset_name, api_key=api_key)
+        # إرسال الطلب
+        response = call_ai(
+            prompt=test_prompt, 
+            history=[], 
+            system="respond with 'pong'", 
+            preset_name=preset_name, 
+            api_key=api_key,
+            custom_url=custom_url,
+            custom_model=custom_model,
+            custom_fmt=custom_fmt
+        )
 
         if "❌" in response or "⏳" in response or "🔑" in response or "🔗" in response:
             return False, response
