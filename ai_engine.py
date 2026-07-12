@@ -328,26 +328,26 @@ def call_ai(
 
         payload, extra_headers = builder(prompt, clean_history, system, preset)
 
-    # بناء الترويسات
-    headers = {
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "application/json",
-    }
-    if fmt == "gemini":
-        url = f"{preset.url}?key={api_key}"
-    elif fmt == "anthropic":
-        headers.update({
-            "x-api-key": api_key,
-            "anthropic-version": "2023-06-01"
-        })
-        url = preset.url
-    elif fmt == "huggingface":
-        headers["Authorization"] = f"Bearer {api_key}"
-        url = preset.url
-    else:  # openai-compatible
-        headers["Authorization"] = f"Bearer {api_key}"
-        url = preset.url
+        # بناء الترويسات
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/json",
+        }
+        if fmt == "gemini":
+            url = f"{preset.url}?key={api_key}"
+        elif fmt == "anthropic":
+            headers.update({
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01"
+            })
+            url = preset.url
+        elif fmt == "huggingface":
+            headers["Authorization"] = f"Bearer {api_key}"
+            url = preset.url
+        else:  # openai-compatible
+            headers["Authorization"] = f"Bearer {api_key}"
+            url = preset.url
 
         headers.update(extra_headers)
 
