@@ -84,3 +84,28 @@ def classify_case(text: str, call_ai_fn: Optional[Callable] = None):
     if call_ai_fn:
         return legal_classifier.classify_with_ai(text, call_ai_fn)
     return legal_classifier.classify(text)
+
+
+def get_all_categories() -> List[str]:
+    """
+    جلب جميع تصنيفات القانون العمالي.
+    ← إصلاح: هذه الدالة كانت مفقودة وتسبب NameError
+    """
+    db = get_legal_database()
+    return db.get_all_categories()
+
+
+def search_saudi_labor_laws(query: str, max_results: int = 10) -> List[Dict]:
+    """
+    بحث في نصوص نظام العمل السعودي.
+    ← إصلاح: هذه الدالة كانت مفقودة وتسبب NameError
+    """
+    return legal_search.search(query, max_results=max_results)
+
+
+def search_with_ai(query: str, call_ai_fn: Callable, max_results: int = 5) -> List[Dict]:
+    """
+    بحث مُعزَّز بالذكاء الاصطناعي.
+    ← إصلاح: هذه الدالة كانت مفقودة وتسبب NameError
+    """
+    return legal_search.search_with_ai(query, call_ai_fn, max_results)

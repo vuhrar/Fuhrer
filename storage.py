@@ -1,54 +1,63 @@
 # storage.py
 """
-إدارة الجلسات والإعدادات على قاعدة بيانات Supabase.
-نظام تخزين سحابي مجاني (500MB storage, 2GB bandwidth).
+طبقة التخزين الموحدة — النسخة الاحترافية v2.0
+تدعم: Supabase (سحابي) + JSON محلي (Fallback)
+المبادئ: Repository Pattern, Clean Error Handling, Unified Data Model
 """
 
 import json
 import os
+import uuid
 from datetime import datetime
 from typing import Dict, List, Optional, Any
+
 from dotenv import load_dotenv
 
-# تحميل متغيرات البيئة
 load_dotenv()
 
+# ============================================================
 # تهيئة Supabase
+# ============================================================
 try:
     from supabase import create_client, Client
-    SUPABASE_URL = os.getenv("SUPABASE_URL")
-    SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-    if SUPABASE_URL and SUPABASE_KEY:
-        supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    _SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+    _SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+    if _SUPABASE_URL and _SUPABASE_KEY:
+        _supabase: Optional[Client] = create_client(_SUPABASE_URL, _SUPABASE_KEY)
         USE_SUPABASE = True
     else:
-        supabase = None
+        _supabase = None
         USE_SUPABASE = False
-except ImportError:
-    supabase = None
+except Exception:
+    _supabase = None
     USE_SUPABASE = False
 
-# النظام المحلي (fallback)
-DATA_DIR = "fuehrer_data"
-SESSIONS_DIR = os.path.join(DATA_DIR, "sessions")
-SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
+# ============================================================
+# إعداد التخزين المحلي
+# ============================================================
+_DATA_DIR      = os.path.join(os.path.expanduser("~"), "fuhrer_data")
+_SESSIONS_DIR  = os.path.join(_DATA_DIR, "sessions")
+_CASES_DIR     = os.path.join(_DATA_DIR, "cases")
+_SETTINGS_FILE = os.path.join(_DATA_DIR, "settings.json")
 
-# إنشاء المجلدات
-for d in (DATA_DIR, SESSIONS_DIR):
-    os.makedirs(d, exist_ok=True)
+for _d in (_DATA_DIR, _SESSIONS_DIR, _CASES_DIR):
+    os.makedirs(_d, exist_ok=True)
 
+
+# ============================================================
+# أدوات JSON المحلية
+# ============================================================
 def _load_json(path: str, default: Any = None) -> Any:
-    """تحميل ملف JSON"""
     try:
         if os.path.exists(path):
             with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
     except Exception:
         pass
-    return default
+    return default if default is not None else {}
+
 
 def _save_json(path: str, data: Any) -> bool:
-    """حفظ ملف JSON"""
     try:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -56,276 +65,294 @@ def _save_json(path: str, data: Any) -> bool:
     except Exception:
         return False
 
-# ============ وظائف Supabase ============
-def _create_sessions_table():
-    """إنشاء جدول الجلسات في Supabase"""
-    if not USE_SUPABASE:
-        return False
-    try:
-        response = supabase.table("sessions").select("*").limit(1).execute()
-        return True
-    except Exception as e:
-        print(f"⚠️  خطأ في إنشاء جدول الجلسات: {e}")
-        return False
 
-def _create_cases_table():
-    """إنشاء جدول القضايا في Supabase"""
-    if not USE_SUPABASE:
-        return False
-    try:
-        response = supabase.table("cases").select("*").limit(1).execute()
-        return True
-    except Exception as e:
-        print(f"⚠️  خطأ في إنشاء جدول القضايا: {e}")
-        return False
+def _now_iso() -> str:
+    return datetime.now().isoformat()
 
-if USE_SUPABASE:
-    _create_sessions_table()
-    _create_cases_table()
 
-# ============ وظائف الجلسات ============
+def _now_str() -> str:
+    return datetime.now().strftime("%Y-%m-%d %H:%M")
+
+
+# ============================================================
+# معرّفات فريدة
+# ============================================================
+def new_session_id() -> str:
+    """إنشاء معرّف جلسة فريد."""
+    return f"sess_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+
+
+def new_case_id() -> str:
+    """إنشاء معرّف قضية فريد."""
+    return f"case_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+
+
+# ============================================================
+# الإعدادات (Settings)
+# ============================================================
 def load_settings() -> Dict:
-    """تحميل الإعدادات"""
+    """تحميل إعدادات التطبيق."""
     if USE_SUPABASE:
         try:
-            response = supabase.table("settings").select("*").limit(1).execute()
-            if response.data:
-                return response.data[0]["data"]
-            return {}
-        except Exception as e:
-            print(f"⚠️  خطأ في تحميل الإعدادات من Supabase: {e}")
-            return _load_json(SETTINGS_FILE, {})
-    else:
-        return _load_json(SETTINGS_FILE, {})
+            resp = _supabase.table("settings").select("*").eq("id", 1).limit(1).execute()
+            if resp.data:
+                return resp.data[0].get("data", {})
+        except Exception:
+            pass
+    return _load_json(_SETTINGS_FILE, {})
+
 
 def save_settings(settings: Dict) -> bool:
-    """حفظ الإعدادات (بدون مفتاح API)"""
-    safe_settings = {k: v for k, v in settings.items() if k != "api_key"}
+    """حفظ الإعدادات (يستثني مفتاح API من الحفظ الدائم)."""
+    safe = {k: v for k, v in settings.items() if k != "api_key"}
     if USE_SUPABASE:
         try:
-            response = supabase.table("settings").update({
-                "data": safe_settings,
-                "updated_at": datetime.now().isoformat()
-            }).eq("id", 1).execute()
-            if not response.data:
-                response = supabase.table("settings").insert({
-                    "id": 1,
-                    "data": safe_settings,
-                    "created_at": datetime.now().isoformat(),
-                    "updated_at": datetime.now().isoformat()
-                }).execute()
+            resp = _supabase.table("settings").upsert({
+                "id": 1, "data": safe, "updated_at": _now_iso()
+            }).execute()
             return True
-        except Exception as e:
-            print(f"⚠️  خطأ في حفظ الإعدادات إلى Supabase: {e}")
-            return _save_json(SETTINGS_FILE, safe_settings)
-    else:
-        return _save_json(SETTINGS_FILE, safe_settings)
+        except Exception:
+            pass
+    return _save_json(_SETTINGS_FILE, safe)
 
-def list_sessions(user_id: str = "default") -> List[Dict]:
-    """قائمة الجلسات"""
+
+# ============================================================
+# الجلسات (Sessions)
+# ============================================================
+def save_session(session_id: str, data: Dict) -> bool:
+    """حفظ جلسة محادثة."""
+    data["id"] = session_id
+    data.setdefault("created_at", _now_str())
+    data["updated_at"] = _now_str()
+
     if USE_SUPABASE:
         try:
-            response = supabase.table("sessions").select(
-                "id, data->name, data->messages, data->persona, created_at"
-            ).eq("user_id", user_id).order("created_at", desc=True).limit(20).execute()
-            sessions = []
-            for session in response.data:
-                sessions.append({
-                    "id": session["id"],
-                    "name": session["data"]["name"] if session["data"] else "جلسة جديدة",
-                    "count": len(session["data"]["messages"]) if session["data"] and "messages" in session["data"] else 0,
-                    "persona": session["data"]["persona"] if session["data"] else "lawyer",
-                    "created_at": session["created_at"]
-                })
-            return sessions
-        except Exception as e:
-            print(f"⚠️  خطأ في تحميل الجلسات من Supabase: {e}")
-            return _list_sessions_local()
-    else:
-        return _list_sessions_local()
+            _supabase.table("sessions").upsert({
+                "id": session_id,
+                "name": data.get("name", "جلسة"),
+                "persona": data.get("persona", "lawyer"),
+                "messages": data.get("messages", []),
+                "created_at": data.get("created_at"),
+                "updated_at": data["updated_at"],
+            }).execute()
+            return True
+        except Exception:
+            pass
+    return _save_json(os.path.join(_SESSIONS_DIR, f"{session_id}.json"), data)
 
-def _list_sessions_local() -> List[Dict]:
-    """قائمة الجلسات من النظام المحلي"""
-    out = []
+
+def load_session(session_id: str) -> Dict:
+    """تحميل جلسة محادثة."""
+    if USE_SUPABASE:
+        try:
+            resp = _supabase.table("sessions").select("*").eq("id", session_id).limit(1).execute()
+            if resp.data:
+                return resp.data[0]
+        except Exception:
+            pass
+    return _load_json(os.path.join(_SESSIONS_DIR, f"{session_id}.json"), {})
+
+
+def list_sessions(limit: int = 30) -> List[Dict]:
+    """قائمة الجلسات المحفوظة."""
+    if USE_SUPABASE:
+        try:
+            resp = _supabase.table("sessions").select(
+                "id, name, persona, updated_at, created_at"
+            ).order("updated_at", desc=True).limit(limit).execute()
+            return [
+                {
+                    "id": s["id"],
+                    "name": s.get("name", "جلسة"),
+                    "persona": s.get("persona", "lawyer"),
+                    "count": len(s.get("messages", [])) if isinstance(s.get("messages"), list) else 0,
+                    "created_at": s.get("created_at", ""),
+                    "updated_at": s.get("updated_at", ""),
+                }
+                for s in resp.data
+            ]
+        except Exception:
+            pass
+
+    # Fallback محلي
+    sessions = []
     try:
-        for f in sorted(os.listdir(SESSIONS_DIR), reverse=True)[:20]:
-            if f.endswith(".json"):
-                d = _load_json(os.path.join(SESSIONS_DIR, f), {})
-                out.append({
-                    "id": f[:-5],
+        files = sorted(
+            [f for f in os.listdir(_SESSIONS_DIR) if f.endswith(".json")],
+            key=lambda f: os.path.getmtime(os.path.join(_SESSIONS_DIR, f)),
+            reverse=True
+        )[:limit]
+        for fname in files:
+            d = _load_json(os.path.join(_SESSIONS_DIR, fname), {})
+            if d:
+                sessions.append({
+                    "id": d.get("id", fname[:-5]),
                     "name": d.get("name", "جلسة"),
-                    "count": len(d.get("messages", [])),
                     "persona": d.get("persona", "lawyer"),
-                    "created_at": d.get("updated", "")
+                    "count": len(d.get("messages", [])),
+                    "created_at": d.get("created_at", ""),
+                    "updated_at": d.get("updated_at", ""),
                 })
     except Exception:
         pass
-    return out
+    return sessions
 
-def load_session(sid: str) -> Dict:
-    """تحميل جلسة"""
+
+def delete_session(session_id: str) -> bool:
+    """حذف جلسة."""
     if USE_SUPABASE:
         try:
-            response = supabase.table("sessions").select("data").eq("id", sid).single().execute()
-            if response.data and "data" in response.data:
-                return response.data["data"]
-            return {"name": "جلسة جديدة", "messages": [], "persona": "lawyer"}
-        except Exception as e:
-            print(f"⚠️  خطأ في تحميل الجلسة من Supabase: {e}")
-            return _load_session_local(sid)
-    else:
-        return _load_session_local(sid)
-
-def _load_session_local(sid: str) -> Dict:
-    """تحميل جلسة من النظام المحلي"""
-    return _load_json(
-        os.path.join(SESSIONS_DIR, f"{sid}.json"),
-        {"name": "جلسة جديدة", "messages": [], "persona": "lawyer"}
-    )
-
-def save_session(sid: str, data: Dict) -> bool:
-    """حفظ جلسة"""
-    data["updated"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-    if USE_SUPABASE:
-        try:
-            existing = supabase.table("sessions").select("id").eq("id", sid).execute()
-            if existing.data:
-                response = supabase.table("sessions").update({
-                    "data": data,
-                    "updated_at": datetime.now().isoformat()
-                }).eq("id", sid).execute()
-            else:
-                response = supabase.table("sessions").insert({
-                    "id": sid,
-                    "user_id": "default",
-                    "data": data,
-                    "created_at": datetime.now().isoformat(),
-                    "updated_at": datetime.now().isoformat()
-                }).execute()
+            _supabase.table("sessions").delete().eq("id", session_id).execute()
             return True
-        except Exception as e:
-            print(f"⚠️  خطأ في حفظ الجلسة إلى Supabase: {e}")
-            return _save_session_local(sid, data)
-    else:
-        return _save_session_local(sid, data)
-
-def _save_session_local(sid: str, data: Dict) -> bool:
-    """حفظ جلسة في النظام المحلي"""
-    return _save_json(os.path.join(SESSIONS_DIR, f"{sid}.json"), data)
-
-def delete_session(sid: str) -> bool:
-    """حذف جلسة"""
-    if USE_SUPABASE:
-        try:
-            response = supabase.table("sessions").delete().eq("id", sid).execute()
-            return True
-        except Exception as e:
-            print(f"⚠️  خطأ في حذف الجلسة من Supabase: {e}")
-            return _delete_session_local(sid)
-    else:
-        return _delete_session_local(sid)
-
-def _delete_session_local(sid: str) -> bool:
-    """حذف جلسة من النظام المحلي"""
-    path = os.path.join(SESSIONS_DIR, f"{sid}.json")
+        except Exception:
+            pass
+    path = os.path.join(_SESSIONS_DIR, f"{session_id}.json")
     if os.path.exists(path):
         os.remove(path)
         return True
     return False
 
-def new_session_id() -> str:
-    """إنشاء معرف جلسة جديد"""
-    return datetime.now().strftime("%Y%m%d_%H%M%S")
 
-# ============ وظائف القضايا ============
-def create_case(case_data: Dict, user_id: str = "default") -> str:
-    """إنشاء قضية جديدة"""
-    case_id = f"CASE-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-    case_data["id"] = case_id
-    case_data["user_id"] = user_id
-    case_data["created_at"] = datetime.now().isoformat()
-    case_data["status"] = "مفتوحة"
-    case_data["updates"] = []
+def clear_all_sessions() -> bool:
+    """مسح جميع الجلسات."""
     if USE_SUPABASE:
         try:
-            response = supabase.table("cases").insert(case_data).execute()
-            return case_id
-        except Exception as e:
-            print(f"⚠️  خطأ في إنشاء القضية في Supabase: {e}")
-            return _create_case_local(case_data, case_id)
-    else:
-        return _create_case_local(case_data, case_id)
+            _supabase.table("sessions").delete().neq("id", "").execute()
+            return True
+        except Exception:
+            pass
+    try:
+        for f in os.listdir(_SESSIONS_DIR):
+            if f.endswith(".json"):
+                os.remove(os.path.join(_SESSIONS_DIR, f))
+        return True
+    except Exception:
+        return False
 
-def _create_case_local(case_data: Dict, case_id: str) -> str:
-    """إنشاء قضية في النظام المحلي"""
-    CASES_DIR = os.path.join(DATA_DIR, "cases")
-    os.makedirs(CASES_DIR, exist_ok=True)
-    _save_json(os.path.join(CASES_DIR, f"{case_id}.json"), case_data)
+
+# ============================================================
+# القضايا (Cases)
+# ============================================================
+def create_case(case_data: Dict) -> str:
+    """إنشاء قضية جديدة وإعادة معرّفها."""
+    case_id = new_case_id()
+    full_data = {
+        "id": case_id,
+        "title": case_data.get("title", "قضية جديدة"),
+        "description": case_data.get("description", ""),
+        "status": "مفتوحة",
+        "persona": case_data.get("persona", "lawyer"),
+        "category": case_data.get("category", "عام"),
+        "notes": [],
+        "documents": [],
+        "created_at": _now_str(),
+        "updated_at": _now_str(),
+    }
+    if USE_SUPABASE:
+        try:
+            _supabase.table("cases").insert(full_data).execute()
+            return case_id
+        except Exception:
+            pass
+    _save_json(os.path.join(_CASES_DIR, f"{case_id}.json"), full_data)
     return case_id
 
-def list_cases(user_id: str = "default") -> List[Dict]:
-    """قائمة القضايا"""
+
+def load_case(case_id: str) -> Dict:
+    """تحميل قضية."""
     if USE_SUPABASE:
         try:
-            response = supabase.table("cases").select(
-                "id, user_id, status, created_at, data->title"
-            ).eq("user_id", user_id).order("created_at", desc=True).limit(20).execute()
-            cases = []
-            for case in response.data:
-                cases.append({
-                    "id": case["id"],
-                    "title": case["data"]["title"] if case["data"] and "title" in case["data"] else "قضية جديدة",
-                    "status": case["status"],
-                    "created_at": case["created_at"]
-                })
-            return cases
-        except Exception as e:
-            print(f"⚠️  خطأ في تحميل القضايا من Supabase: {e}")
-            return _list_cases_local(user_id)
-    else:
-        return _list_cases_local(user_id)
+            resp = _supabase.table("cases").select("*").eq("id", case_id).limit(1).execute()
+            if resp.data:
+                return resp.data[0]
+        except Exception:
+            pass
+    return _load_json(os.path.join(_CASES_DIR, f"{case_id}.json"), {})
 
-def _list_cases_local(user_id: str = "default") -> List[Dict]:
-    """قائمة القضايا من النظام المحلي"""
-    CASES_DIR = os.path.join(DATA_DIR, "cases")
+
+def update_case(case_id: str, updates: Dict) -> bool:
+    """تحديث بيانات قضية."""
+    updates["updated_at"] = _now_str()
+    if USE_SUPABASE:
+        try:
+            _supabase.table("cases").update(updates).eq("id", case_id).execute()
+            return True
+        except Exception:
+            pass
+    # محلي
+    path = os.path.join(_CASES_DIR, f"{case_id}.json")
+    data = _load_json(path, {})
+    data.update(updates)
+    return _save_json(path, data)
+
+
+def list_cases(limit: int = 30) -> List[Dict]:
+    """قائمة القضايا المحفوظة."""
+    if USE_SUPABASE:
+        try:
+            resp = _supabase.table("cases").select(
+                "id, title, status, category, persona, created_at, updated_at"
+            ).order("updated_at", desc=True).limit(limit).execute()
+            return resp.data or []
+        except Exception:
+            pass
+
     cases = []
     try:
-        for f in sorted(os.listdir(CASES_DIR), reverse=True)[:20]:
-            if f.endswith(".json"):
-                path = os.path.join(CASES_DIR, f)
-                case_data = _load_json(path, {})
-                if case_data.get("user_id") == user_id:
-                    cases.append({
-                        "id": f[:-5],
-                        "title": case_data.get("title", "قضية جديدة"),
-                        "status": case_data.get("status", "مفتوحة"),
-                        "created_at": case_data.get("created_at", "")
-                    })
+        files = sorted(
+            [f for f in os.listdir(_CASES_DIR) if f.endswith(".json")],
+            key=lambda f: os.path.getmtime(os.path.join(_CASES_DIR, f)),
+            reverse=True
+        )[:limit]
+        for fname in files:
+            d = _load_json(os.path.join(_CASES_DIR, fname), {})
+            if d:
+                cases.append({
+                    "id": d.get("id", fname[:-5]),
+                    "title": d.get("title", "قضية"),
+                    "status": d.get("status", "مفتوحة"),
+                    "category": d.get("category", "عام"),
+                    "persona": d.get("persona", "lawyer"),
+                    "created_at": d.get("created_at", ""),
+                    "updated_at": d.get("updated_at", ""),
+                })
     except Exception:
         pass
     return cases
 
-def clear_all_sessions(user_id: str = "default") -> bool:
-    """مسح جميع الجلسات"""
+
+def delete_case(case_id: str) -> bool:
+    """حذف قضية."""
     if USE_SUPABASE:
         try:
-            response = supabase.table("sessions").delete().eq("user_id", user_id).execute()
+            _supabase.table("cases").delete().eq("id", case_id).execute()
             return True
-        except Exception as e:
-            print(f"⚠️  خطأ في مسح الجلسات من Supabase: {e}")
-            return _clear_all_sessions_local(user_id)
-    else:
-        return _clear_all_sessions_local(user_id)
-
-def _clear_all_sessions_local(user_id: str = "default") -> bool:
-    """مسح جميع الجلسات من النظام المحلي"""
-    try:
-        for f in os.listdir(SESSIONS_DIR):
-            if f.endswith(".json"):
-                path = os.path.join(SESSIONS_DIR, f)
-                case_data = _load_json(path, {})
-                if case_data.get("user_id") == user_id:
-                    os.remove(path)
+        except Exception:
+            pass
+    path = os.path.join(_CASES_DIR, f"{case_id}.json")
+    if os.path.exists(path):
+        os.remove(path)
         return True
-    except Exception:
+    return False
+
+
+def add_case_note(case_id: str, note: str) -> bool:
+    """إضافة ملاحظة لقضية."""
+    case = load_case(case_id)
+    if not case:
         return False
+    notes = case.get("notes", [])
+    notes.append({"text": note, "timestamp": _now_str()})
+    return update_case(case_id, {"notes": notes})
+
+
+# ============================================================
+# إحصائيات عامة
+# ============================================================
+def get_stats() -> Dict:
+    """إحصائيات عامة للتطبيق."""
+    return {
+        "sessions": len(list_sessions()),
+        "cases": len(list_cases()),
+        "storage": "Supabase ☁️" if USE_SUPABASE else "محلي 💾",
+    }

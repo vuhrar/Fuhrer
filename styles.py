@@ -1,358 +1,173 @@
-# styles.py - Custom CSS for Fuhrer Legal App (Saudi Labor Law)
+# styles.py
+"""
+نظام التصميم الموحد للتطبيق — النسخة الاحترافية v2.0
+Dark Mode احترافي مع دعم RTL الكامل
+"""
 
-def get_custom_styles():
-    """Return custom CSS styles for the Streamlit app"""
-    return """
-    <style>
-        /* ===== GLOBAL STYLES ===== */
-        @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;700&display=swap');
+MAIN_CSS = """
+<style>
+:root {
+    --bg-primary:    #0a0f1e;
+    --bg-secondary:  #111827;
+    --bg-card:       #1a2235;
+    --bg-hover:      #1e2d45;
+    --accent-blue:   #4a9eff;
+    --accent-gold:   #f59e0b;
+    --accent-green:  #4ade80;
+    --accent-red:    #f87171;
+    --accent-purple: #a78bfa;
+    --text-primary:  #f1f5f9;
+    --text-secondary:#94a3b8;
+    --text-muted:    #64748b;
+    --border:        #2d3748;
+    --border-hover:  #4a5568;
+    --shadow:        0 4px 24px rgba(0,0,0,0.4);
+    --radius:        12px;
+    --radius-sm:     8px;
+    --transition:    all 0.25s ease;
+}
 
-        /* Arabic font support */
-        html, body, [class*="css"] {
-            font-family: 'Cairo', 'Amiri', sans-serif !important;
-            direction: rtl !important;
-            text-align: right !important;
-        }
+* { box-sizing: border-box; }
 
-        /* Main container */
-        .main > div {
-            max-width: 1200px !important;
-            padding: 1rem !important;
-        }
+html, body, [data-testid="stAppViewContainer"] {
+    background-color: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+    font-family: 'Segoe UI', 'Cairo', 'Noto Kufi Arabic', sans-serif;
+    direction: rtl;
+}
 
-        /* ===== HEADER STYLES ===== */
-        .header {
-            background: linear-gradient(135deg, #0066cc 0%, #004080 100%) !important;
-            color: white !important;
-            padding: 2rem 1rem !important;
-            border-radius: 0 0 15px 15px !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
-        }
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #0d1526 0%, #111827 100%) !important;
+    border-left: 1px solid var(--border);
+}
 
-        .header h1 {
-            font-size: 2.5rem !important;
-            font-weight: 700 !important;
-            margin: 0 !important;
-            text-align: center !important;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3) !important;
-        }
+[data-testid="stHeader"] { background: transparent !important; }
 
-        .header p {
-            font-size: 1.2rem !important;
-            margin: 0.5rem 0 0 0 !important;
-            opacity: 0.9 !important;
-        }
+.stButton > button {
+    background: linear-gradient(135deg, var(--accent-blue), #2563eb) !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 10px 20px !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    transition: var(--transition) !important;
+    box-shadow: 0 2px 8px rgba(74, 158, 255, 0.3) !important;
+}
 
-        /* ===== SIDEBAR STYLES ===== */
-        .css-1d391kg {
-            background: linear-gradient(180deg, #0066cc 0%, #004080 100%) !important;
-            color: white !important;
-        }
+.stButton > button:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(74, 158, 255, 0.5) !important;
+}
 
-        .css-1d391kg a {
-            color: white !important;
-            font-weight: 500 !important;
-        }
+.stTextInput > div > div > input,
+.stTextArea > div > div > textarea,
+.stNumberInput > div > div > input {
+    background-color: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-sm) !important;
+}
 
-        .css-1d391kg a:hover {
-            background-color: rgba(255,255,255,0.2) !important;
-        }
+.stTextInput > div > div > input:focus,
+.stTextArea > div > div > textarea:focus {
+    border-color: var(--accent-blue) !important;
+    box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2) !important;
+}
 
-        /* ===== BUTTON STYLES ===== */
-        .stButton > button {
-            background: linear-gradient(135deg, #0066cc 0%, #004080 100%) !important;
-            color: white !important;
-            border: none !important;
-            border-radius: 8px !important;
-            padding: 0.75rem 2rem !important;
-            font-size: 1.1rem !important;
-            font-weight: 600 !important;
-            transition: all 0.3s ease !important;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
-        }
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-right: 4px solid var(--accent-blue);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin: 12px 0;
+    box-shadow: var(--shadow);
+    line-height: 1.8;
+}
 
-        .stButton > button:hover {
-            transform: translateY(-2px) !important;
-            box-shadow: 0 6px 12px rgba(0,0,0,0.15) !important;
-            background: linear-gradient(135deg, #0055aa 0%, #003366 100%) !important;
-        }
+.card h2, .card h3 { color: var(--accent-blue); margin-bottom: 8px; }
+.card p { color: var(--text-secondary); margin: 4px 0; }
 
-        .stButton > button:active {
-            transform: translateY(0) !important;
-        }
+.stat-card {
+    background: linear-gradient(135deg, var(--bg-card), var(--bg-hover));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+    box-shadow: var(--shadow);
+    transition: var(--transition);
+}
 
-        /* Primary button (for main actions) */
-        .stButton > button:first-child {
-            background: linear-gradient(135deg, #28a745 0%, #218838 100%) !important;
-        }
+.stat-card:hover { transform: translateY(-4px); }
+.stat-card .stat-value { font-size: 2rem; font-weight: 700; color: var(--accent-blue); }
+.stat-card .stat-label { font-size: 0.85rem; color: var(--text-secondary); margin-top: 6px; }
 
-        .stButton > button:first-child:hover {
-            background: linear-gradient(135deg, #218838 0%, #1e7e34 100%) !important;
-        }
+.alert { border-radius: var(--radius-sm); padding: 14px 18px; margin: 8px 0; border-right: 4px solid; }
+.alert.danger  { background: rgba(248,113,113,0.1); border-color: var(--accent-red);    color: #fca5a5; }
+.alert.warn    { background: rgba(245,158,11,0.1);  border-color: var(--accent-gold);   color: #fcd34d; }
+.alert.info    { background: rgba(74,158,255,0.1);  border-color: var(--accent-blue);   color: #93c5fd; }
+.alert.success { background: rgba(74,222,128,0.1);  border-color: var(--accent-green);  color: #86efac; }
 
-        /* Danger button */
-        .stButton > button:last-child {
-            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%) !important;
-        }
+.section-title {
+    font-size: 1.5rem; font-weight: 700; color: var(--text-primary);
+    padding: 16px 0 8px; border-bottom: 2px solid var(--accent-blue); margin-bottom: 20px;
+}
 
-        .stButton > button:last-child:hover {
-            background: linear-gradient(135deg, #c82333 0%, #bd2130 100%) !important;
-        }
+.info-box {
+    background: rgba(74,158,255,0.08); border: 1px solid rgba(74,158,255,0.25);
+    border-radius: var(--radius-sm); padding: 12px 16px; color: #93c5fd;
+    font-size: 0.9rem; margin-bottom: 16px;
+}
 
-        /* ===== INPUT & TEXTAREA STYLES ===== */
-        .stTextInput > div > div > input,
-        .stTextArea > div > div > textarea {
-            border: 2px solid #e0e0e0 !important;
-            border-radius: 8px !important;
-            padding: 0.75rem !important;
-            font-size: 1rem !important;
-            transition: border-color 0.3s ease !important;
-            background-color: #f8f9fa !important;
-        }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
+.badge-blue   { background: rgba(74,158,255,0.15); color: var(--accent-blue); }
+.badge-green  { background: rgba(74,222,128,0.15); color: var(--accent-green); }
+.badge-red    { background: rgba(248,113,113,0.15); color: var(--accent-red); }
+.badge-gold   { background: rgba(245,158,11,0.15);  color: var(--accent-gold); }
 
-        .stTextInput > div > div > input:focus,
-        .stTextArea > div > div > textarea:focus {
-            border-color: #0066cc !important;
-            box-shadow: 0 0 0 3px rgba(0,102,204,0.1) !important;
-            outline: none !important;
-        }
+.logo-container { text-align: center; padding: 20px 0 10px; }
+.logo-title {
+    font-size: 2rem; font-weight: 800;
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.logo-subtitle { font-size: 0.8rem; color: var(--text-muted); letter-spacing: 2px; }
 
-        /* ===== FILE UPLOAD STYLES ===== */
-        .stFileUploader > div {
-            border: 2px dashed #0066cc !important;
-            border-radius: 12px !important;
-            padding: 2rem !important;
-            background-color: #f8f9fa !important;
-            transition: all 0.3s ease !important;
-        }
+.chat-bubble {
+    max-width: 75%; padding: 12px 16px; border-radius: 16px; line-height: 1.7; font-size: 0.9rem;
+}
+.chat-bubble.user      { background: linear-gradient(135deg, var(--accent-blue), #2563eb); color: #fff; }
+.chat-bubble.assistant { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-primary); }
 
-        .stFileUploader > div:hover {
-            border-color: #004080 !important;
-            background-color: #e9ecef !important;
-        }
+.stTabs [data-baseweb="tab-list"] {
+    background: var(--bg-card) !important; border-radius: var(--radius-sm) !important; gap: 4px; padding: 4px;
+}
+.stTabs [data-baseweb="tab"]  { background: transparent !important; color: var(--text-secondary) !important; border-radius: var(--radius-sm) !important; }
+.stTabs [aria-selected="true"] { background: var(--accent-blue) !important; color: #fff !important; }
 
-        /* ===== CARD STYLES ===== */
-        .stCard {
-            background: white !important;
-            border: 1px solid #e0e0e0 !important;
-            border-radius: 12px !important;
-            padding: 1.5rem !important;
-            margin: 1rem 0 !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
-            transition: transform 0.2s ease, box-shadow 0.2s ease !important;
-        }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-blue); }
 
-        .stCard:hover {
-            transform: translateY(-2px) !important;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.1) !important;
-        }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn 0.4s ease forwards; }
 
-        /* ===== TAB STYLES ===== */
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 8px !important;
-        }
+@media (max-width: 768px) {
+    .stat-card .stat-value { font-size: 1.5rem; }
+    .section-title { font-size: 1.2rem; }
+}
+</style>
+"""
 
-        .stTabs [data-baseweb="tab"] {
-            border-radius: 8px 8px 0 0 !important;
-            padding: 12px 24px !important;
-            font-weight: 600 !important;
-            background-color: #f8f9fa !important;
-        }
 
-        .stTabs [data-baseweb="tab"]:hover {
-            background-color: #e9ecef !important;
-        }
+def get_custom_styles() -> str:
+    """إعادة CSS للتوافق مع الكود القديم."""
+    return MAIN_CSS
 
-        .stTabs [aria-selected="true"] {
-            background: linear-gradient(135deg, #0066cc 0%, #004080 100%) !important;
-            color: white !important;
-        }
 
-        /* ===== PROGRESS BAR ===== */
-        .stProgress > div > div > div > div {
-            background: linear-gradient(90deg, #0066cc 0%, #004080 100%) !important;
-        }
-
-        /* ===== ALERT STYLES ===== */
-        .stAlert {
-            border-radius: 8px !important;
-            padding: 1rem !important;
-            margin: 1rem 0 !important;
-        }
-
-        /* Success alert */
-        .stAlert [data-baseweb="notification"] {
-            background-color: #d4edda !important;
-            border-left: 4px solid #28a745 !important;
-            color: #155724 !important;
-        }
-
-        /* Error alert */
-        .stAlert-error [data-baseweb="notification"] {
-            background-color: #f8d7da !important;
-            border-left: 4px solid #dc3545 !important;
-            color: #721c24 !important;
-        }
-
-        /* Warning alert */
-        .stAlert-warning [data-baseweb="notification"] {
-            background-color: #fff3cd !important;
-            border-left: 4px solid #ffc107 !important;
-            color: #856404 !important;
-        }
-
-        /* ===== DATA TABLE STYLES ===== */
-        .dataframe {
-            font-size: 0.9rem !important;
-            border-collapse: collapse !important;
-            width: 100% !important;
-        }
-
-        .dataframe th {
-            background: linear-gradient(135deg, #0066cc 0%, #004080 100%) !important;
-            color: white !important;
-            padding: 12px !important;
-            text-align: center !important;
-            font-weight: 600 !important;
-        }
-
-        .dataframe td {
-            padding: 10px !important;
-            border: 1px solid #e0e0e0 !important;
-            text-align: center !important;
-        }
-
-        .dataframe tr:nth-child(even) {
-            background-color: #f8f9fa !important;
-        }
-
-        .dataframe tr:hover {
-            background-color: #e9ecef !important;
-        }
-
-        /* ===== MARKDOWN STYLES ===== */
-        .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
-            color: #004080 !important;
-            border-bottom: 2px solid #0066cc !important;
-            padding-bottom: 0.5rem !important;
-            margin-top: 1.5rem !important;
-        }
-
-        .stMarkdown h1 {
-            font-size: 2rem !important;
-        }
-
-        .stMarkdown h2 {
-            font-size: 1.75rem !important;
-        }
-
-        .stMarkdown h3 {
-            font-size: 1.5rem !important;
-        }
-
-        .stMarkdown p {
-            line-height: 1.8 !important;
-            font-size: 1.05rem !important;
-        }
-
-        .stMarkdown a {
-            color: #0066cc !important;
-            text-decoration: none !important;
-            font-weight: 600 !important;
-        }
-
-        .stMarkdown a:hover {
-            text-decoration: underline !important;
-            color: #004080 !important;
-        }
-
-        /* ===== CODE BLOCK STYLES ===== */
-        .stMarkdown code {
-            background-color: #f8f9fa !important;
-            padding: 2px 6px !important;
-            border-radius: 4px !important;
-            font-family: 'Courier New', monospace !important;
-            font-size: 0.95rem !important;
-        }
-
-        /* ===== FOOTER STYLES ===== */
-        .footer {
-            text-align: center !important;
-            padding: 2rem 1rem !important;
-            margin-top: 2rem !important;
-            background: linear-gradient(135deg, #0066cc 0%, #004080 100%) !important;
-            color: white !important;
-            border-radius: 15px 15px 0 0 !important;
-        }
-
-        /* ===== RESPONSIVE DESIGN ===== */
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 1.8rem !important;
-            }
-
-            .stButton > button {
-                padding: 0.5rem 1.5rem !important;
-                font-size: 1rem !important;
-            }
-
-            .main > div {
-                padding: 0.5rem !important;
-            }
-        }
-
-        /* ===== SCROLLBAR STYLES ===== */
-        ::-webkit-scrollbar {
-            width: 10px !important;
-            height: 10px !important;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1 !important;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #0066cc !important;
-            border-radius: 5px !important;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #004080 !important;
-        }
-
-        /* ===== SAUDI FLAG COLORS ===== */
-        .saudi-theme {
-            background: linear-gradient(135deg, #006633 0%, #004080 100%) !important;
-        }
-
-        /* Loading spinner */
-        .stSpinner > div {
-            border-top-color: #0066cc !important;
-            border-right-color: #0066cc !important;
-            border-bottom-color: #0066cc !important;
-        }
-
-        /* Expander styles */
-        .streamlit-expanderHeader {
-            background-color: #f8f9fa !important;
-            border-radius: 8px !important;
-            font-weight: 600 !important;
-            color: #004080 !important;
-        }
-
-        /* Metric card styles */
-        .stMetric {
-            background: white !important;
-            border: 1px solid #e0e0e0 !important;
-            border-radius: 12px !important;
-            padding: 1.5rem !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
-        }
-
-        /* Download button */
-        .stDownloadButton > button {
-            background: linear-gradient(135deg, #28a745 0%, #218838 100%) !important;
-            color: white !important;
-        }
-    </style>
-    """
+def inject_styles():
+    """حقن أنماط CSS في التطبيق."""
+    import streamlit as st
+    st.markdown(MAIN_CSS, unsafe_allow_html=True)

@@ -135,32 +135,28 @@ html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"]
 """
 
 def render_persona_selection():
-    st.markdown("<p class='sub-text' style='text-align:center;margin-bottom:4px;'>اختر الشخصية التي تناسب حاجتك</p>", unsafe_allow_html=True)
+    st.markdown("<p class='sub-text' style='text-align:center;margin-bottom:16px;'>اختر الشخصية التي تناسب حاجتك</p>", unsafe_allow_html=True)
+
+    personas = [
+        ("lawyer",  "👨‍⚖️", "المحامي",    "هجومي — يكتب الدعاوى والحجج الدفاعية"),
+        ("advisor", "👩‍💼", "المستشار",  "تحليلي — يحسب المستحقات ويوجه"),
+        ("worker",  "👷", "العامل",    "حماية الحقوق — يدافع عن حقوق العامل"),
+        ("judge",   "⚖️",   "القاضي",    "حيادي — يحلّل ويطبّق مواد النظام"),
+    ]
+
     c1, c2 = st.columns(2)
-    with c1:
-        if st.button("👨⚖️ المحامي\n\nهجومي، يكتب الدعاوى", key="pick_lawyer", use_container_width=True):
-            st.session_state.persona = "lawyer"
-            st.session_state.active_nav = "chat"
-            if not st.session_state.current_sid:
-                sid = storage.new_session_id()
-                st.session_state.current_sid = sid
-                st.session_state.current_msgs = []
-                storage.save_session(sid, {"name": "جلسة المحامي", "messages": [], "persona": "lawyer"})
-            st.rerun()
-    with c2:
-        if st.button("👩💼 المستشار\n\nتحليلي، يحسب الاستحقاقات", key="pick_advisor", use_container_width=True):
-            st.session_state.persona = "advisor"
-            st.session_state.active_nav = "chat"
-            if not st.session_state.current_sid:
-                sid = storage.new_session_id()
-                st.session_state.current_sid = sid
-                st.session_state.current_msgs = []
-                storage.save_session(sid, {"name": "جلسة المستشار", "messages": [], "persona": "advisor"})
-            st.rerun()
-    st.markdown("<div style='text-align:center;margin-top:40px;'>"
-                "<p class='sub-text'>👨⚖️ المحامي — يكتب الدعاوى والحجج الدفاعية</p>"
-                "<p class='sub-text'>👩💼 المستشار — يحسب المستحقات ويوجه</p>"
-                "</div>", unsafe_allow_html=True)
+    for idx, (pid, icon, name, desc) in enumerate(personas):
+        col = c1 if idx % 2 == 0 else c2
+        with col:
+            if st.button(f"{icon} {name}\n\n{desc}", key=f"pick_{pid}", use_container_width=True):
+                st.session_state.persona = pid
+                st.session_state.active_nav = "chat"
+                if not st.session_state.current_sid:
+                    sid = storage.new_session_id()
+                    st.session_state.current_sid = sid
+                    st.session_state.current_msgs = []
+                    storage.save_session(sid, {"name": f"جلسة {name}", "messages": [], "persona": pid})
+                st.rerun()
 
 def render_nav_bar():
     nav_items = [
@@ -188,9 +184,13 @@ def render_nav_bar():
 
 def render_persona_badge():
     persona = st.session_state.persona
-    persona_label = "المحامي" if persona == "lawyer" else "المستشار"
-    persona_icon = "👨⚖️" if persona == "lawyer" else "👩💼"
-    color = "#c9a84c" if persona == "lawyer" else "#4a9eff"
+    _map = {
+        "lawyer":  ("👨‍⚖️", "المحامي",   "#c9a84c"),
+        "advisor": ("👩‍💼", "المستشار", "#4a9eff"),
+        "worker":  ("👷",   "العامل",   "#4ade80"),
+        "judge":   ("⚖️",   "القاضي",   "#a78bfa"),
+    }
+    persona_icon, persona_label, color = _map.get(persona, ("👤", persona, "#888"))
     st.markdown(f"""<div style='text-align:center;margin:6px 0 16px;'>
         <span style='font-size:0.82rem;color:{color};font-weight:700;
                        border:1px solid {color};border-radius:20px;
@@ -270,6 +270,8 @@ def render_tools():
             tools.run_case_strength()
         elif tool_id == "settlement":
             tools.run_settlement()
+        elif tool_id == "extractor":
+            tools.run_info_extractor()
         if st.button("⬅️ العودة إلى قائمة الأدوات", use_container_width=True):
             st.session_state.selected_tool = None
             st.rerun()

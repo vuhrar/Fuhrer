@@ -81,36 +81,44 @@ PERSONA_PROMPTS = {
 # PERSONA TOOLS MAPPING
 # ======================
 
+# PERSONA_TOOLS: كل عنصر هو tuple (icon, name, tool_id) للتوافق مع ui.py
 PERSONA_TOOLS = {
     "worker": [
-        {"name": "تحليل عقد العمل", "func": "analyze_contract", "icon": "📄", "description": "تحليل عقود العمل حسب نظام العمل السعودي"},
-        {"name": "حساب نهاية الخدمة", "func": "calculate_end_of_service", "icon": "💰", "description": "حساب مستحقات نهاية الخدمة"},
-        {"name": "بحث قانوني", "func": "legal_search", "icon": "🔍", "description": "بحث في مواد نظام العمل"},
-        {"name": "توليد مرافعة", "func": "generate_pleading", "icon": "⚖️", "description": "توليد مرافعات قانونية"},
-        {"name": "كشف الغش في المراسلات", "func": "detect_deception", "icon": "🕵️", "description": "كشف التزوير أو الغش في الرسائل"},
+        ("💰", "حاسبة الاستحقاقات",   "calculator"),
+        ("🔍", "البحث القانوني",        "law_search"),
+        ("📧", "فحص المراسلات",         "email_scan"),
+        ("📊", "تقييم قوة القضية",      "case_strength"),
+        ("🤝", "تقييم التسوية",          "settlement"),
     ],
     "employer": [
-        {"name": "إنشاء عقد عمل", "func": "create_contract", "icon": "📝", "description": "إنشاء عقود عمل متوافقة مع النظام"},
-        {"name": "حساب نهاية الخدمة", "func": "calculate_end_of_service", "icon": "💰", "description": "حساب مستحقات نهاية الخدمة للموظفين"},
-        {"name": "بحث قانوني", "func": "legal_search", "icon": "🔍", "description": "بحث في مواد نظام العمل"},
-        {"name": "تصنيف قضايا", "func": "classify_case", "icon": "🏷️", "description": "تصنيف القضايا القانونية تلقائياً"},
-        {"name": "تتبع المواعيد", "func": "track_deadlines", "icon": "⏰", "description": "تتبع مواعيد تقديم الدعاوي"},
+        ("💰", "حاسبة الاستحقاقات",   "calculator"),
+        ("🔍", "البحث القانوني",        "law_search"),
+        ("⏰", "تتبع المواعيد",          "calculator"),
+        ("📊", "تقييم قوة القضية",      "case_strength"),
+        ("🤝", "تقييم التسوية",          "settlement"),
     ],
     "lawyer": [
-        {"name": "بحث قانوني متقدم", "func": "legal_search", "icon": "🔍", "description": "بحث متقدم في مواد النظام"},
-        {"name": "تحليل قضية", "func": "analyze_case", "icon": "📊", "description": "تحليل القضايا على 18 محوراً قانونياً"},
-        {"name": "توليد مرافعة", "func": "generate_pleading", "icon": "⚖️", "description": "توليد مرافعات قانونية متقدمة"},
-        {"name": "تصنيف قضايا", "func": "classify_case", "icon": "🏷️", "description": "تصنيف القضايا تلقائياً"},
-        {"name": "كشف الغش", "func": "detect_deception", "icon": "🕵️", "description": "كشف التزوير في الوثائق"},
-        {"name": "حساب تعويضات", "func": "calculate_compensation", "icon": "💸", "description": "حساب التعويضات القانونية"},
+        ("🔍", "بحث قانوني متقدم",      "law_search"),
+        ("📊", "تحليل قوة القضية",      "case_strength"),
+        ("📧", "كشف الزلات القانونية",   "email_scan"),
+        ("💰", "حاسبة الاستحقاقات",   "calculator"),
+        ("🤝", "تقييم التسوية",          "settlement"),
+        ("🔎", "استخراج المعلومات",      "extractor"),
+    ],
+    "advisor": [
+        ("💰", "حاسبة الاستحقاقات",   "calculator"),
+        ("🔍", "البحث القانوني",        "law_search"),
+        ("📊", "تقييم قوة القضية",      "case_strength"),
+        ("🤝", "تقييم التسوية",          "settlement"),
+        ("🔎", "استخراج المعلومات",      "extractor"),
     ],
     "judge": [
-        {"name": "تحليل قضية كامل", "func": "analyze_case", "icon": "⚖️", "description": "تحليل شامل للقضايا على 18 محوراً"},
-        {"name": "بحث قانوني", "func": "legal_search", "icon": "🔍", "description": "بحث في مواد النظام"},
-        {"name": "تصنيف قضايا", "func": "classify_case", "icon": "🏷️", "description": "تصنيف القضايا تلقائياً"},
-        {"name": "توليد أحكام", "func": "generate_verdict", "icon": "📜", "description": "مساعدة في صياغة الأحكام"},
-        {"name": "مراجعة مرافعات", "func": "review_pleading", "icon": "🔎", "description": "مراجعة المرافعات القانونية"},
-    ]
+        ("⚖️", "تحليل قضية كامل",      "case_strength"),
+        ("🔍", "بحث قانوني",            "law_search"),
+        ("📧", "فحص المراسلات",         "email_scan"),
+        ("💰", "حاسبة الاستحقاقات",   "calculator"),
+        ("🔎", "استخراج المعلومات",      "extractor"),
+    ],
 }
 
 # ======================
@@ -167,3 +175,40 @@ def legal_search(query: str, limit: int = 5) -> List[Dict]:
     """Search in legal database"""
     db = get_legal_database()
     return db.search_articles(query, limit)
+
+
+# ======================
+# TOOL PROMPTS — مضاف جديد
+# ======================
+
+TOOL_PROMPTS = {
+    "settlement": [
+        "تقييم خيارات التسوية",
+        "تسوية ودية",
+        (
+            "أنت مستشار قانوني خبير في التسوية الودية للمنازعات العمالية السعودية.\n"
+            "قيّم خيارات التسوية وقدّم:\n"
+            "1. هل التسوية الودية مناسبة لهذه القضية\n"
+            "2. نطاق التسوية المقبول (الحد الأدنى والأقصى)\n"
+            "3. استراتيجية التفاوض المثلى\n"
+            "4. مقارنة بين التسوية ورفع الدعوى\n"
+            "5. التوصية النهائية"
+        ),
+    ],
+    "analysis": [
+        "تحليل قضية",
+        "تحليل قانوني",
+        "أنت محامٍ سعودي خبير بالقانون العمالي. حلّل القضية بشكل شامل.",
+    ],
+}
+
+# إضافة persona 'advisor' و 'analyzer' المفقودين
+PERSONA_PROMPTS["advisor"] = """
+    أنت مستشار قانوني خبير في التسوية الودية للمنازعات العمالية السعودية.
+    تقدّم تقييمات واقعية وعملية مبنية على نصوص نظام العمل السعودي.
+"""
+
+PERSONA_PROMPTS["analyzer"] = """
+    أنت محلل قانوني متخصص في تحليل المراسلات والوثائق القانونية.
+    تكشف عن الزلات والإقرارات والانتهاكات في النصوص.
+"""

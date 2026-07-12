@@ -1,163 +1,425 @@
 # ai_engine.py
 """
-محرك الاتصال بالنماذج الاصطناعية.
-يدعم: Gemini, Groq, Claude, OpenAI, Hugging Face (مجاني)
+محرك الاتصال بنماذج الذكاء الاصطناعي — النسخة الاحترافية v2.0
+يدعم: Gemini, Groq, Claude, OpenAI, Hugging Face
+المبادئ المطبقة: Factory Pattern, Single Responsibility, Clean Error Handling
 """
 
 import json
 import logging
 import urllib.request
 import urllib.error
-from typing import List, Dict
+from typing import List, Dict, Optional, Callable
+from dataclasses import dataclass, field
 
+# ============================================================
+# إعداد نظام التسجيل (Logging)
+# ============================================================
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ai_engine")
 
-# قائمة النماذج المتاحة
-PRESETS = {
-    "Gemini 2.0 Flash — نجاني": {
+
+# ============================================================
+# نموذج بيانات الإعداد (Data Model)
+# ============================================================
+@dataclass
+class AIPreset:
+    """نموذج بيانات موحد لإعدادات النموذج"""
+    name: str
+    url: str
+    model: str
+    fmt: str           # openai | gemini | anthropic | huggingface
+    free: bool = False
+    requires_key: bool = True
+    max_tokens: int = 4096
+    temperature: float = 0.7
+    description: str = ""
+
+
+# ============================================================
+# سجل النماذج المتاحة (Model Registry)
+# ============================================================
+_PRESETS_RAW: List[Dict] = [
+    # --- Google Gemini ---
+    {
+        "name": "Gemini 2.0 Flash ⚡",
         "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
-        "model": "gemini-2.0-flash", "fmt": "gemini", "free": False, "requires_key": True
+        "model": "gemini-2.0-flash", "fmt": "gemini", "free": False, "requires_key": True,
+        "description": "الأسرع من Google — مثالي للردود الفورية"
     },
-    "Gemini 1.5 Pro — نجاني": {
+    {
+        "name": "Gemini 1.5 Pro 🧠",
         "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent",
-        "model": "gemini-1.5-pro", "fmt": "gemini", "free": False, "requires_key": True
+        "model": "gemini-1.5-pro", "fmt": "gemini", "free": False, "requires_key": True,
+        "description": "الأذكى من Google — للتحليل المعمق"
     },
-    "Groq LLaMA 3.3 — سريع مجاني": {
+    # --- Groq (مجاني وسريع) ---
+    {
+        "name": "Groq LLaMA 3.3 70B 🚀 (مجاني)",
         "url": "https://api.groq.com/openai/v1/chat/completions",
-        "model": "llama-3.3-70b-versatile", "fmt": "openai", "free": True, "requires_key": True
+        "model": "llama-3.3-70b-versatile", "fmt": "openai", "free": True, "requires_key": True,
+        "description": "أسرع نموذج مجاني — LLaMA 70B عبر Groq"
     },
-    "Groq Mixtral 8x7B — سريع مجاني": {
+    {
+        "name": "Groq LLaMA 3.1 8B ⚡ (مجاني)",
         "url": "https://api.groq.com/openai/v1/chat/completions",
-        "model": "mixtral-8x7b-32768", "fmt": "openai", "free": True, "requires_key": True
+        "model": "llama-3.1-8b-instant", "fmt": "openai", "free": True, "requires_key": True,
+        "description": "خفيف وسريع جداً للمهام البسيطة"
     },
-    "Claude Sonnet — أنثروبيك": {
-        "url": "https://api.anthropic.com/v1/messages", "model": "claude-sonnet-4-6",
-        "fmt": "anthropic", "free": False, "requires_key": True
+    {
+        "name": "Groq Mixtral 8x7B 🔥 (مجاني)",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "model": "mixtral-8x7b-32768", "fmt": "openai", "free": True, "requires_key": True,
+        "description": "نموذج Mixtral عبر Groq — نافذة سياق كبيرة"
     },
-    "Claude Haiku — أنثروبيك": {
-        "url": "https://api.anthropic.com/v1/messages", "model": "claude-haiku-4-0",
-        "fmt": "anthropic", "free": False, "requires_key": True
+    # --- Anthropic Claude ---
+    {
+        "name": "Claude Sonnet 4 🎯",
+        "url": "https://api.anthropic.com/v1/messages",
+        "model": "claude-sonnet-4-6", "fmt": "anthropic", "free": False, "requires_key": True,
+        "description": "الأفضل للتحليل القانوني المعمق"
     },
-    "OpenAI GPT-4o — أوبن أي": {
-        "url": "https://api.openai.com/v1/chat/completions", "model": "gpt-4o",
-        "fmt": "openai", "free": False, "requires_key": True
+    {
+        "name": "Claude Haiku 4 ⚡",
+        "url": "https://api.anthropic.com/v1/messages",
+        "model": "claude-haiku-4-0", "fmt": "anthropic", "free": False, "requires_key": True,
+        "description": "سريع واقتصادي من Anthropic"
     },
-    "OpenAI GPT-3.5 — أوبن أي": {
-        "url": "https://api.openai.com/v1/chat/completions", "model": "gpt-3.5-turbo",
-        "fmt": "openai", "free": False, "requires_key": True
+    # --- OpenAI ---
+    {
+        "name": "GPT-4o 🏆",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "model": "gpt-4o", "fmt": "openai", "free": False, "requires_key": True,
+        "description": "الأقوى من OpenAI — متعدد الوسائط"
     },
-    "Hugging Face - Qwen2.5 7B": {
-        "url": "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-7B-Instruct",
-        "model": "Qwen/Qwen2.5-7B-Instruct", "fmt": "huggingface", "free": True, "requires_key": True
+    {
+        "name": "GPT-4o Mini 💡",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "model": "gpt-4o-mini", "fmt": "openai", "free": False, "requires_key": True,
+        "description": "اقتصادي وذكي من OpenAI"
     },
-    "Hugging Face - Mistral 7B": {
-        "url": "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
-        "model": "mistralai/Mistral-7B-Instruct-v0.2", "fmt": "huggingface", "free": True, "requires_key": True
+    # --- Hugging Face (مجاني) ---
+    {
+        "name": "Qwen2.5 72B 🌟 (مجاني)",
+        "url": "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-72B-Instruct",
+        "model": "Qwen/Qwen2.5-72B-Instruct", "fmt": "huggingface", "free": True, "requires_key": True,
+        "description": "نموذج Qwen الضخم — مجاني عبر HuggingFace"
     },
-    "Hugging Face - Llama 3.2 3B": {
-        "url": "https://api-inference.huggingface.co/models/meta-llama/Meta-Llama-3.2-3B-Instruct",
-        "model": "meta-llama/Meta-Llama-3.2-3B-Instruct", "fmt": "huggingface", "free": True, "requires_key": True
+    {
+        "name": "Mistral 7B 🌊 (مجاني)",
+        "url": "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3",
+        "model": "mistralai/Mistral-7B-Instruct-v0.3", "fmt": "huggingface", "free": True, "requires_key": True,
+        "description": "Mistral الموثوق — مجاني عبر HuggingFace"
     },
-    "⚙️ مخصص": {"url": "", "model": "", "fmt": "openai", "free": False, "requires_key": True}
+    # --- مخصص ---
+    {
+        "name": "⚙️ مخصص (Custom API)",
+        "url": "", "model": "", "fmt": "openai", "free": False, "requires_key": True,
+        "description": "اتصل بأي API متوافق مع OpenAI"
+    },
+]
+
+# بناء القاموس الرئيسي
+PRESETS: Dict[str, AIPreset] = {
+    p["name"]: AIPreset(**{k: v for k, v in p.items() if k != "name"}, name=p["name"])
+    for p in _PRESETS_RAW
 }
 
+
+# ============================================================
+# طبقة الاتصال الأساسية (HTTP Layer)
+# ============================================================
 def _post_json(url: str, payload: dict, headers: dict, timeout: int = 90) -> dict:
+    """إرسال طلب POST بصيغة JSON مع معالجة الأخطاء الكاملة."""
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(url, data=data, headers=headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
-        body = e.read().decode(errors="ignore")[:800]
+        body = e.read().decode(errors="ignore")[:1000]
         raise RuntimeError(f"HTTP {e.code}: {body}")
     except urllib.error.URLError as e:
         raise RuntimeError(f"URLError: {e.reason}")
+    except TimeoutError:
+        raise RuntimeError("انتهت مهلة الاتصال (Timeout). تحقق من اتصالك بالإنترنت.")
 
-def call_ai(prompt: str, history: List[Dict], system: str,
-            preset_name: str, api_key: str,
-            custom_url: str = "", custom_model: str = "", custom_fmt: str = "openai") -> str:
-    preset = PRESETS.get(preset_name, PRESETS["⚙️ مخصص"])
-    url = custom_url if preset_name == "⚙️ مخصص" else preset["url"]
-    model = custom_model if preset_name == "⚙️ مخصص" else preset["model"]
-    fmt = custom_fmt if preset_name == "⚙️ مخصص" else preset["fmt"]
 
-    if not api_key and preset.get("requires_key", True):
+# ============================================================
+# محولات الصيغ (Format Adapters) — Factory Pattern
+# ============================================================
+def _build_gemini_payload(prompt: str, history: List[Dict], system: str, preset: AIPreset) -> tuple:
+    """بناء طلب Gemini API."""
+    contents = []
+    if system:
+        contents.append({"role": "user", "parts": [{"text": system}]})
+        contents.append({"role": "model", "parts": [{"text": "حسناً، أنا جاهز للمساعدة."}]})
+    for m in history:
+        role = "model" if m["role"] == "assistant" else "user"
+        contents.append({"role": role, "parts": [{"text": str(m["content"])}]})
+    contents.append({"role": "user", "parts": [{"text": prompt}]})
+    payload = {
+        "contents": contents,
+        "generationConfig": {
+            "maxOutputTokens": preset.max_tokens,
+            "temperature": preset.temperature,
+            "topP": 0.95,
+        },
+        "safetySettings": [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+        ]
+    }
+    return payload, {}
+
+
+def _build_anthropic_payload(prompt: str, history: List[Dict], system: str, preset: AIPreset) -> tuple:
+    """بناء طلب Anthropic Claude API."""
+    messages = [{"role": m["role"], "content": str(m["content"])} for m in history]
+    messages.append({"role": "user", "content": prompt})
+    payload = {
+        "model": preset.model,
+        "max_tokens": preset.max_tokens,
+        "system": system,
+        "messages": messages
+    }
+    return payload, {}
+
+
+def _build_openai_payload(prompt: str, history: List[Dict], system: str, preset: AIPreset) -> tuple:
+    """بناء طلب OpenAI-compatible API."""
+    messages = [{"role": "system", "content": system}]
+    messages += [{"role": m["role"], "content": str(m["content"])} for m in history]
+    messages.append({"role": "user", "content": prompt})
+    payload = {
+        "model": preset.model,
+        "messages": messages,
+        "max_tokens": preset.max_tokens,
+        "temperature": preset.temperature,
+    }
+    return payload, {}
+
+
+def _build_huggingface_payload(prompt: str, history: List[Dict], system: str, preset: AIPreset) -> tuple:
+    """بناء طلب HuggingFace Inference API."""
+    # صيغة ChatML
+    full_prompt = f"<|im_start|>system\n{system}<|im_end|>\n"
+    for m in history[-6:]:  # آخر 6 رسائل فقط لتجنب تجاوز الحد
+        role = "assistant" if m["role"] == "assistant" else "user"
+        full_prompt += f"<|im_start|>{role}\n{m['content']}<|im_end|>\n"
+    full_prompt += f"<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
+    payload = {
+        "inputs": full_prompt,
+        "parameters": {
+            "max_new_tokens": min(preset.max_tokens, 1024),
+            "temperature": preset.temperature,
+            "return_full_text": False,
+            "do_sample": True,
+        }
+    }
+    return payload, {}
+
+
+# ============================================================
+# محلل الاستجابات (Response Parsers)
+# ============================================================
+def _parse_gemini(resp: dict) -> str:
+    return resp["candidates"][0]["content"]["parts"][0]["text"]
+
+
+def _parse_anthropic(resp: dict) -> str:
+    return resp["content"][0]["text"]
+
+
+def _parse_openai(resp: dict) -> str:
+    return resp["choices"][0]["message"]["content"]
+
+
+def _parse_huggingface(resp) -> str:
+    if isinstance(resp, list) and resp:
+        text = resp[0].get("generated_text", "")
+        # إزالة الـ prompt من الاستجابة إذا عاد كاملاً
+        if "<|im_start|>assistant" in text:
+            text = text.split("<|im_start|>assistant")[-1].strip()
+        return text
+    return str(resp)
+
+
+# ============================================================
+# الدالة الرئيسية للاتصال بالذكاء الاصطناعي
+# ============================================================
+def call_ai(
+    prompt: str,
+    history: List[Dict],
+    system: str,
+    preset_name: str,
+    api_key: str,
+    custom_url: str = "",
+    custom_model: str = "",
+    custom_fmt: str = "openai"
+) -> str:
+    """
+    الدالة الرئيسية للاتصال بأي نموذج ذكاء اصطناعي.
+    
+    Args:
+        prompt: رسالة المستخدم الحالية
+        history: سجل المحادثة السابقة
+        system: تعليمات النظام (System Prompt)
+        preset_name: اسم النموذج المختار
+        api_key: مفتاح API
+        custom_url: رابط API مخصص (للنموذج المخصص فقط)
+        custom_model: اسم نموذج مخصص
+        custom_fmt: صيغة API مخصصة
+    
+    Returns:
+        نص الرد من النموذج
+    """
+    # جلب إعدادات النموذج
+    preset = PRESETS.get(preset_name)
+    
+    if preset_name == "⚙️ مخصص (Custom API)":
+        preset = AIPreset(
+            name="مخصص", url=custom_url, model=custom_model,
+            fmt=custom_fmt, free=False, requires_key=True
+        )
+
+    if not preset:
+        return f"❌ النموذج '{preset_name}' غير موجود. اختر نموذجاً من القائمة."
+
+    # التحقق من المفتاح
+    if not api_key.strip() and preset.requires_key:
         return "❌ لم يتم إدخال مفتاح API. أدخله من زر الإعدادات (⚙️)."
-    if not url:
-        return "❌ لم يتم تحديد رابط API. راجعه من الإعدادات."
+    
+    if not preset.url:
+        return "❌ لم يتم تحديد رابط API. راجع الإعدادات."
 
-    clean_history = [{"role": m["role"], "content": m["content"]} for m in history]
+    # تنظيف السجل
+    clean_history = [
+        {"role": m["role"], "content": str(m.get("content", ""))}
+        for m in history
+        if m.get("role") in ("user", "assistant") and m.get("content")
+    ]
 
     try:
+        # اختيار المحوّل المناسب
+        fmt = preset.fmt
+        builders = {
+            "gemini": _build_gemini_payload,
+            "anthropic": _build_anthropic_payload,
+            "openai": _build_openai_payload,
+            "huggingface": _build_huggingface_payload,
+        }
+        parsers = {
+            "gemini": _parse_gemini,
+            "anthropic": _parse_anthropic,
+            "openai": _parse_openai,
+            "huggingface": _parse_huggingface,
+        }
+
+        builder = builders.get(fmt, _build_openai_payload)
+        parser = parsers.get(fmt, _parse_openai)
+
+        payload, extra_headers = builder(prompt, clean_history, system, preset)
+
+        # بناء الترويسات
+        headers = {"Content-Type": "application/json"}
         if fmt == "gemini":
-            contents = []
-            if system:
-                contents.append({"role": "user", "parts": [{"text": system}]})
-                contents.append({"role": "model", "parts": [{"text": "حسناً، أنا جاهز للمساعدة."}]})
-            for m in clean_history:
-                role = "model" if m["role"] == "assistant" else "user"
-                contents.append({"role": role, "parts": [{"text": m["content"]}]})
-            contents.append({"role": "user", "parts": [{"text": prompt}]})
-            payload = {"contents": contents, "generationConfig": {"maxOutputTokens": 4096, "temperature": 0.7}}
-            resp = _post_json(f"{url}?key={api_key}", payload, {"Content-Type": "application/json"})
-            return resp["candidates"][0]["content"]["parts"][0]["text"]
-
+            url = f"{preset.url}?key={api_key}"
         elif fmt == "anthropic":
-            messages = clean_history + [{"role": "user", "content": prompt}]
-            payload = {"model": model, "max_tokens": 4096, "system": system, "messages": messages}
-            headers = {"Content-Type": "application/json", "x-api-key": api_key, "anthropic-version": "2023-06-01"}
-            resp = _post_json(url, payload, headers)
-            return resp["content"][0]["text"]
-
+            headers.update({
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01"
+            })
+            url = preset.url
         elif fmt == "huggingface":
-            full_prompt = f"<s>[INST] {system} [/INST]\n"
-            for msg in [{"role": "system", "content": system}] + clean_history + [{"role": "user", "content": prompt}]:
-                if msg["role"] == "system":
-                    continue
-                full_prompt += f"\n<s>[INST] {msg['content']} [/INST]"
-            payload = {"inputs": full_prompt, "parameters": {"max_new_tokens": 512, "temperature": 0.7}}
-            headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
-            resp = _post_json(url, payload, headers)
-            if isinstance(resp, list) and len(resp) > 0:
-                return resp[0].get("generated_text", "")
-            return str(resp)
-
+            headers["Authorization"] = f"Bearer {api_key}"
+            url = preset.url
         else:  # openai-compatible
-            messages = [{"role": "system", "content": system}] + clean_history + [{"role": "user", "content": prompt}]
-            payload = {"model": model, "messages": messages, "max_tokens": 4096, "temperature": 0.7}
-            headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
-            resp = _post_json(url, payload, headers)
-            return resp["choices"][0]["message"]["content"]
+            headers["Authorization"] = f"Bearer {api_key}"
+            url = preset.url
+
+        headers.update(extra_headers)
+
+        logger.info(f"Calling AI: {preset_name} | fmt={fmt}")
+        resp = _post_json(url, payload, headers)
+        result = parser(resp)
+        
+        if not result or not result.strip():
+            return "⚠️ الرد فارغ من النموذج. حاول مرة أخرى."
+        
+        return result.strip()
 
     except RuntimeError as e:
         err = str(e)
+        logger.error(f"AI call error: {err[:200]}")
         if "429" in err:
-            return "⏳ الطلبات كثيرة جداً (Rate Limit). انتظر قليلاً ثم حاول مجدداً."
+            return "⏳ تجاوزت الحد المسموح به من الطلبات (Rate Limit). انتظر دقيقة ثم حاول مجدداً."
         if "401" in err or "403" in err:
-            return "🔑 مفتاح API غير صحيح أو منتهي الصلاحية."
+            return "🔑 مفتاح API غير صحيح أو منتهي الصلاحية. تحقق منه في الإعدادات."
         if "404" in err:
-            return f"🔗 رابط API غير صحيح أو النموذج غير موجود:\n`{url}`"
-        return f"❌ خطأ في الاتصال:\n{err[:400]}"
+            return f"🔗 رابط API غير صحيح أو النموذج غير متاح:\n`{preset.url}`"
+        if "503" in err or "502" in err:
+            return "🔧 الخادم غير متاح مؤقتاً. حاول مرة أخرى بعد قليل."
+        return f"❌ خطأ في الاتصال:\n{err[:500]}"
     except KeyError as e:
-        return f"❌ استجابة غير متوقعة من الخادم (مفتاح مفقود: {e})."
+        logger.error(f"Parse error: missing key {e}")
+        return f"❌ استجابة غير متوقعة من الخادم (مفتاح مفقود: {e}). قد يكون النموذج تغيّر."
     except Exception as e:
-        return f"❌ خطأ غير متوقع: {str(e)[:300]}"
+        logger.error(f"Unexpected error: {str(e)[:300]}")
+        return f"❌ خطأ غير متوقع: {str(e)[:400]}"
 
+
+# ============================================================
+# دوال مساعدة (Helper Functions)
+# ============================================================
 def get_preset_info(preset_name: str) -> Dict:
-    preset = PRESETS.get(preset_name, {})
+    """جلب معلومات نموذج معين."""
+    preset = PRESETS.get(preset_name)
+    if not preset:
+        return {"name": preset_name, "url": "", "model": "", "fmt": "openai",
+                "free": False, "requires_key": True, "description": ""}
     return {
-        "name": preset_name,
-        "url": preset.get("url", ""),
-        "model": preset.get("model", ""),
-        "fmt": preset.get("fmt", ""),
-        "free": preset.get("free", False),
-        "requires_key": preset.get("requires_key", True)
+        "name": preset.name,
+        "url": preset.url,
+        "model": preset.model,
+        "fmt": preset.fmt,
+        "free": preset.free,
+        "requires_key": preset.requires_key,
+        "description": preset.description,
     }
 
+
 def get_free_models() -> List[Dict]:
-    return [{"name": name, "model": p["model"], "fmt": p["fmt"], "requires_key": p["requires_key"]}
-            for name, p in PRESETS.items() if p.get("free", False)]
+    """جلب قائمة النماذج المجانية."""
+    return [get_preset_info(name) for name, p in PRESETS.items() if p.free]
+
 
 def get_paid_models() -> List[Dict]:
-    return [{"name": name, "model": p["model"], "fmt": p["fmt"], "requires_key": p["requires_key"]}
-            for name, p in PRESETS.items() if not p.get("free", False)]
+    """جلب قائمة النماذج المدفوعة."""
+    return [get_preset_info(name) for name, p in PRESETS.items() if not p.free]
+
+
+def get_all_models_grouped() -> Dict[str, List[Dict]]:
+    """جلب جميع النماذج مجمعة حسب المزود."""
+    groups: Dict[str, List] = {}
+    for name, p in PRESETS.items():
+        provider = name.split()[0] if name else "أخرى"
+        if "Gemini" in name:
+            provider = "Google Gemini"
+        elif "Groq" in name:
+            provider = "Groq (مجاني)"
+        elif "Claude" in name:
+            provider = "Anthropic Claude"
+        elif "GPT" in name:
+            provider = "OpenAI"
+        elif "Qwen" in name or "Mistral" in name or "Llama" in name:
+            provider = "HuggingFace (مجاني)"
+        else:
+            provider = "مخصص"
+        groups.setdefault(provider, []).append(get_preset_info(name))
+    return groups
+
+
+def preset_names() -> List[str]:
+    """قائمة بأسماء جميع النماذج."""
+    return list(PRESETS.keys())
