@@ -23,6 +23,7 @@ html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"]
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   background-clip: text; text-shadow: 0 10px 30px rgba(0,0,0,0.4);
   letter-spacing: -0.02em;
+  margin-bottom: 20px;
 }
 .settings-corner { position: fixed; top: 12px; right: 12px; z-index: 9999; }
 .persona-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 24px 0 8px; }
@@ -60,25 +61,40 @@ html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"]
 }
 .bubble-ai.adv { border-right-color: #4a9eff; }
 .bubble-time { font-size: 0.68rem; color: #666 !important; margin-top: 4px; text-align: left; }
-.stTextArea textarea, .stTextInput input {
-  background: #d1d5db !important; color: #ffffff !important; border: 1.5px solid #9ca3af !important;
-  border-radius: 14px !important; font-family: 'Tajawal', sans-serif !important;
-  font-size: 0.95rem !important; direction: rtl !important; caret-color: #4a9eff;
-  font-weight: 500 !important;
+/* خانات الإدخال: رمادي فاتح مع خط أبيض */
+.stTextArea textarea, .stTextInput input, .stNumberInput input, .stSelectbox [data-baseweb="select"] > div {
+  background-color: #d1d5db !important;
+  color: #ffffff !important;
+  border: 1px solid #9ca3af !important;
+  border-radius: 12px !important;
+  font-family: 'Tajawal', sans-serif !important;
+  font-weight: 600 !important;
+}
+.stTextArea textarea::placeholder, .stTextInput input::placeholder {
+  color: rgba(255,255,255,0.7) !important;
 }
 .stTextArea textarea:focus, .stTextInput input:focus {
-  border-color: #c9a84c !important; box-shadow: 0 0 0 2px rgba(201,168,76,0.2) !important;
+  border-color: #4a9eff !important; box-shadow: 0 0 0 2px rgba(74,158,255,0.2) !important;
 }
-.stSelectbox > div > div, .stNumberInput input {
-  background: #d1d5db !important; color: #ffffff !important; border: 1.5px solid #9ca3af !important;
-  border-radius: 12px !important;
-}
+/* شريط التنقل: أبيض مع خطوط رمادية داكنة */
 .stTabs [data-baseweb="tab-list"] {
-  background: #ffffff !important; border-radius: 12px !important; gap: 4px; padding: 4px;
+  background-color: #ffffff !important;
+  border-radius: 12px !important;
+  padding: 5px !important;
+  gap: 5px !important;
   border: 1px solid #e5e7eb !important;
 }
-.stTabs [data-baseweb="tab"]  { background: transparent !important; color: #4b5563 !important; border-radius: 8px !important; }
-.stTabs [aria-selected="true"] { background: #4a9eff !important; color: #ffffff !important; }
+.stTabs [data-baseweb="tab"] {
+  height: 45px !important;
+  background-color: transparent !important;
+  border-radius: 8px !important;
+  color: #4b5563 !important;
+  font-weight: 700 !important;
+}
+.stTabs [aria-selected="true"] {
+  background-color: #4a9eff !important;
+  color: #ffffff !important;
+}
 .card {
   background: #2c2c2e; border: 1px solid #3a3a3c; border-right: 3px solid #c9a84c;
   border-radius: 14px; padding: 14px 18px; margin: 8px 0; color: #ffffff !important;

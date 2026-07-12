@@ -75,7 +75,7 @@ with corner_col:
         st.rerun()
 
 # اسم التطبيق
-st.markdown("<div class='app-title'>Führer</div>", unsafe_allow_html=True)
+st.markdown("<div class='app-title'>FÜHRER</div>", unsafe_allow_html=True)
 st.markdown("<p class='sub-text' style='text-align:center;margin-top:-10px;'>النظام القانوني الذكي للقانون العمالي السعودي</p>",
             unsafe_allow_html=True)
 
