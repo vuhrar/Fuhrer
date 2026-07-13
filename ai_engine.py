@@ -111,6 +111,13 @@ _PRESETS_RAW: List[Dict] = [
         "model": "mistralai/Mistral-7B-Instruct-v0.3", "fmt": "huggingface", "free": True, "requires_key": True,
         "description": "Mistral الموثوق — مجاني عبر HuggingFace"
     },
+    # --- Specialized Legal Model ---
+    {
+        "name": "Führer Law Brain (Qwen 0.6B) 🧠",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "model": "distil-qwen3-0.6b-shellper-q4_k_m", "fmt": "openai", "free": False, "requires_key": True,
+        "description": "عقل البرنامج المتخصص — متعلم من الأنظمة واللوائح السعودية المرفوعة"
+    },
     # --- مخصص ---
     {
         "name": "⚙️ مخصص (Custom API)",

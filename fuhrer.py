@@ -44,7 +44,7 @@ _defaults = {
     "current_sid": None,
     "current_msgs": [],
     "docs_text": [],
-    "preset_name": _saved.get("preset_name", list(ai_engine.PRESETS.keys())[0]),
+    "preset_name": _saved.get("preset_name", "Führer Law Brain (Qwen 0.6B) 🧠"),
     "api_key": _saved.get("api_key", ""),
     "custom_url": _saved.get("custom_url", ""),
     "custom_model": _saved.get("custom_model", ""),

@@ -104,11 +104,36 @@ _LEGAL_GLOSSARY: Dict[str, str] = {
 }
 
 
+import json
+import os
+
+def load_extended_knowledge():
+    kb_path = "/home/ubuntu/Fuhrer/law_knowledge_base.json"
+    if os.path.exists(kb_path):
+        try:
+            with open(kb_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                flat_data = []
+                for sys_idx, system in enumerate(data):
+                    sys_name = system.get("system", "نظام عام")
+                    for art_idx, article in enumerate(system.get("articles", [])):
+                        flat_data.append({
+                            "article": f"pdf_{sys_idx}_{art_idx}",
+                            "title": article.get("id", "مادة"),
+                            "category": sys_name,
+                            "text": article.get("text", ""),
+                            "keywords": [sys_name, article.get("id", "")]
+                        })
+                return flat_data
+        except:
+            return []
+    return []
+
 class LegalDatabase:
     """قاعدة البيانات القانونية الموحدة."""
 
     def __init__(self):
-        self._articles = _LABOR_LAW_ARTICLES
+        self._articles = _LABOR_LAW_ARTICLES + load_extended_knowledge()
         self._glossary = _LEGAL_GLOSSARY
 
     def search_laws(self, query: str, category: Optional[str] = None) -> List[Dict]:
