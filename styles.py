@@ -129,7 +129,7 @@ html, body, [data-testid="stAppViewContainer"] {
 
 .logo-container { text-align: center; padding: 20px 0 10px; }
 .logo-title {
-    font-size: 3.5rem; font-weight: 800; /* تكبير الشعار للضعف */
+    font-size: 3rem; font-weight: 700; /* تكبير الشعار للضعف */
     background: linear-gradient(135deg, #ffffff, var(--accent-blue));
     -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     text-shadow: 0 10px 30px rgba(0,0,0,0.3);
