@@ -108,7 +108,7 @@ import json
 import os
 
 def load_extended_knowledge():
-    kb_path = "/home/ubuntu/Fuhrer/law_knowledge_base.json"
+    kb_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "law_knowledge_base.json")
     if os.path.exists(kb_path):
         try:
             with open(kb_path, 'r', encoding='utf-8') as f:

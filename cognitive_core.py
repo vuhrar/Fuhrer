@@ -1,48 +1,75 @@
+"""
+cognitive_core.py — النواة المعرفية لمنصة فُهرار.
+
+تُعرِّف هذه الوحدة مراحل معالجة الطلبات القانونية وتوفّر
+prompt النظامي الموحّد الذي يُحقن في كل استدعاء للذكاء الاصطناعي.
+"""
+
+
+SYSTEM_STAGES = [
+    "فهم الطلب وتحديد طبيعته",
+    "بناء خطة تحليل قانوني",
+    "تحليل الوقائع المُقدَّمة",
+    "استخراج المسائل القانونية ذات الصلة",
+    "اختيار الأدوات والأنظمة القانونية المناسبة",
+    "بناء الاستدلال القانوني المدعوم بالنصوص",
+    "صياغة القرار أو التوصية النهائية",
+]
+
+CORE_SYSTEM_PROMPT = """
+أنت مساعد قانوني متخصص في نظام العمل السعودي ونظام الخدمة المدنية
+ولوائحهما التنفيذية. تعمل وفق المراحل التالية لكل طلب:
+
+1. فهم الطلب وتحديد طبيعته (استشارة / تحليل / صياغة / اعتراض).
+2. بناء خطة تحليل قانوني منهجية.
+3. تحليل الوقائع المُقدَّمة بموضوعية.
+4. استخراج المسائل القانونية وربطها بمواد النظام.
+5. اختيار الأدوات القانونية الملائمة (تعويض / عقد / شكوى...).
+6. بناء استدلال مدعوم بنصوص النظام والأنظمة ذات الصلة.
+7. تقديم رأي أو توصية واضحة مع ذكر المصادر.
+
+قواعد صارمة:
+- لا تخترع مواد أو أرقاماً غير موجودة في الأنظمة.
+- إن لم تعرف الإجابة القاطعة، قل ذلك صراحةً وأرشد للجهة المختصة.
+- استخدم العربية الفصيحة الواضحة دائماً.
+- ابدأ الردود العملية بخلاصة قابلة للتنفيذ.
+""".strip()
+
+
 class CognitiveCore:
+    """
+    النواة المعرفية: تُنظّم مراحل تفكير المساعد القانوني
+    وتوفّر prompt النظامي المناسب لكل سياق.
+    """
+
     def __init__(self):
-        pass
+        self.stages = SYSTEM_STAGES
+        self.base_prompt = CORE_SYSTEM_PROMPT
 
-    def understand_request(self):
-        # فهم الطلب
-        pass
+    def get_system_prompt(self, persona_prompt: str = "") -> str:
+        """يدمج persona prompt مع النواة المعرفية الأساسية."""
+        if persona_prompt:
+            return f"{persona_prompt}\n\n{self.base_prompt}"
+        return self.base_prompt
 
-    def build_execution_plan(self):
-        # بناء خطة التنفيذ
-        pass
+    def describe_stages(self) -> str:
+        """يعيد وصفاً نصياً لمراحل التحليل."""
+        return "\n".join(f"{i+1}. {s}" for i, s in enumerate(self.stages))
 
-    def analyze_facts(self):
-        # تحليل الوقائع
-        pass
+    def understand_request(self, text: str) -> dict:
+        """تصنيف أولي للطلب بناءً على الكلمات المفتاحية."""
+        categories = {
+            "استشارة": ["هل يحق", "ما حكم", "ما هو", "هل يجوز", "أريد أن أعرف"],
+            "تحليل":   ["حلل", "افحص", "ما رأيك", "قيّم", "دراسة"],
+            "صياغة":   ["اكتب", "صِغ", "أعدّ", "اصنع", "انشئ"],
+            "اعتراض":  ["اعترض", "طعن", "رفض", "رد على", "نقض"],
+        }
+        text_lower = text.lower()
+        for cat, keywords in categories.items():
+            if any(kw in text_lower for kw in keywords):
+                return {"type": cat, "text": text}
+        return {"type": "استشارة", "text": text}
 
-    def extract_legal_issues(self):
-        # استخراج المسائل القانونية
-        pass
 
-    def select_tools(self):
-        # اختيار الأدوات
-        pass
-
-    def build_inference(self):
-        # بناء الاستدلال
-        pass
-
-    def make_decision(self):
-        # اتخاذ القرار
-        pass
-
-    def run(self):
-        self.understand_request()
-        self.build_execution_plan()
-        self.analyze_facts()
-        self.extract_legal_issues()
-        self.select_tools()
-        self.build_inference()
-        self.make_decision()
-
-# إنشاء كائن من النواة المعرفية
-
+# المثيل الموحّد
 cognitive_core = CognitiveCore()
-
-# تشغيل النواة المعرفية
-
-cognitive_core.run()
