@@ -15,6 +15,7 @@ import file_processing
 import storage
 import api
 import tools
+import styles 
 
 st.set_page_config(
     page_title="FÜHRER — المنصة القانونية الاحترافية",
