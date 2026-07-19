@@ -233,6 +233,9 @@ def render_tool_execution():
         tools.run_settlement()
     elif tool_id == "extractor":
         tools.run_info_extractor()
+    elif tool_id == "litigation":
+    tools.run_litigation_center()
+
     
     if st.button("⬅️ العودة للمحادثة", use_container_width=True):
         st.session_state.selected_tool = None
