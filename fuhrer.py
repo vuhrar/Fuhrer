@@ -25,7 +25,8 @@ st.set_page_config(
 )
 
 # تطبيق التنسيق الاحترافي
-st.markdown(ui.CSS, unsafe_allow_html=True)
+st.markdown(styles.MAIN_CSS, unsafe_allow_html=True)
+
 
 # تهيئة حالة الجلسة
 _saved = storage.load_settings()
