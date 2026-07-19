@@ -1,7 +1,8 @@
 # styles.py
 MAIN_CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Zain:wght@400;500;700;900&display=swap');
+font-family: 'Zain', sans-serif !important;
 
 *, *::before, *::after { box-sizing: border-box !important; font-family: 'Tajawal', sans-serif !important; }
 html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stBottom"] {
