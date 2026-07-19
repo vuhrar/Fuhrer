@@ -18,7 +18,7 @@ import tools
 import styles 
 import ui
 
-st.markdown(styles.MAIN_CSS, unsafe_allow_html=True)  # يسحب التنسيق
+st.markdown(ui.MAIN_CSS, unsafe_allow_html=True)  # يسحب التنسيق
 ...
 ui.render_persona_selection()  # يسحب الواجهة
 
@@ -31,7 +31,7 @@ st.set_page_config(
 )
 
 # تطبيق التنسيق الاحترافي
-st.markdown(styles.MAIN_CSS, unsafe_allow_html=True)
+st.markdown(ui.MAIN_CSS, unsafe_allow_html=True)
 
 
 # تهيئة حالة الجلسة
@@ -173,22 +173,22 @@ if st.session_state.show_panel == "full":
 st.markdown("<div class='app-title'>FÜHRER</div>", unsafe_allow_html=True)
 
 if st.session_state.persona is None:
-    styles.render_persona_selection()
+    ui.render_persona_selection()
 else:
-    styles.render_nav_bar()
-    styles.render_persona_badge()
+    ui.render_nav_bar()
+    ui.render_persona_badge()
     
     nav = st.session_state.active_nav
     if nav == "chat":
-        styles.render_chat()
+        ui.render_chat()
     elif nav == "tool_exec":
-        styles.render_tool_execution()
+        ui.render_tool_execution()
     elif nav == "sessions":
-        styles.render_sessions()
+        ui.render_sessions()
     elif nav == "analysis":
-        styles.render_analysis()
+        ui.render_analysis()
     elif nav == "cases":
-        styles.render_cases()
+        ui.render_cases()
     elif nav == "switch":
         st.session_state.persona = None
         st.session_state.active_nav = "chat"
