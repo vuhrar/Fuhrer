@@ -416,3 +416,294 @@ def run_info_extractor():
                         st.markdown(f"- `{art}`")
                 else:
                     st.info("لا توجد مواد")
+# ============================================================
+# ٧. مركز المنازعات والتقاضي — جديد
+# ============================================================
+def run_litigation_center():
+    """مركز المنازعات والتقاضي — أدوات حقيقية للمحاكم العمالية"""
+    import litigation_tools as lt
+
+    if "lit_evidence_list" not in st.session_state:
+        st.session_state.lit_evidence_list = []
+
+    st.markdown("""
+    
+
+⚖️ مركز المنازعات والتقاضي
+
+ 
+
+""", unsafe_allow_html=True)
+
+    lit_tabs = st.tabs([
+        "📊 تقييم الأدلة", "💰 مقارنة التسوية", "📅 المخطط الزمني", "📝 صياغة اللائحة"
+    ])
+
+    # ── تبويب ١: تقييم الأدلة ──────────────────────────
+    with lit_tabs[0]:
+        st.markdown("### 📊 محلل الأدلة والإثبات")
+        st.caption("قيّم أدلتك قبل رفع الدعوى — تعرف على قوة موقفك والفجوات")
+
+        evidence_types = list(lt.EvidenceAnalyzer.EVIDENCE_TYPES.keys())
+        col_type, col_desc, col_date, col_add = st.columns([3, 4, 2, 2])
+        with col_type:
+            new_type = st.selectbox("نوع الدليل:", evidence_types, key="lit_ev_type")
+        with col_desc:
+            new_desc = st.text_input("وصف مختصر:", placeholder="مثلاً: عقد عمل موقع 2020", key="lit_ev_desc")
+        with col_date:
+            new_date = st.date_input("التاريخ:", key="lit_ev_date")
+        with col_add:
+            st.write("")
+            if st.button("➕ أضف", key="lit_ev_add", use_container_width=True):
+                if new_desc:
+                    st.session_state.lit_evidence_list.append({
+                        "type": new_type, "description": new_desc,
+                        "date": new_date.strftime("%Y-%m-%d"),
+                    })
+                    st.rerun()
+
+        if st.session_state.lit_evidence_list:
+            st.markdown("---")
+            for i, ev in enumerate(st.session_state.lit_evidence_list):
+                col_ev, col_del = st.columns([10, 1])
+                with col_ev:
+                    info = lt.EvidenceAnalyzer.EVIDENCE_TYPES.get(ev["type"], {})
+                    st.markdown(f"{i+1}. **{ev['type']}** ⭐{info.get('weight','?')}/10 — _{ev['description']}_  `{ev['date']}`")
+                with col_del:
+                    if st.button("🗑️", key=f"lit_del_{i}"):
+                        st.session_state.lit_evidence_list.pop(i)
+                        st.rerun()
+
+        if st.button("🔍 حلل الأدلة", use_container_width=True, key="lit_analyze_evidence"):
+            if not st.session_state.lit_evidence_list:
+                st.warning("أضف دليلاً واحداً على الأقل")
+            else:
+                result = lt.evidence_analyzer.analyze_evidence(st.session_state.lit_evidence_list)
+                st.markdown(f"""
+                
+
+ 
+## {result['category']}
+
+ 
+الدرجة: {result['total_score']} | النسبة: {result['percentage']}%
+
+ 
+
+""", unsafe_allow_html=True)
+                st.info(f"💡 {result['recommendation']}")
+
+                st.markdown("#### 📋 تفاصيل الأدلة:")
+                for d in result["details"]:
+                    st.markdown(f"- ⭐**{d['weight']}/10** — {d['type']}: _{d['description']}_ | {d['note']}")
+
+                if result["gaps"]:
+                    st.warning("#### ⚠️ أدلة موصى بإضافتها:")
+                    for g in result["gaps"]:
+                        info = lt.EvidenceAnalyzer.EVIDENCE_TYPES.get(g, {})
+                        st.markdown(f"- 📎 **{g}** — {info.get('desc', '')}")
+
+                if st.button("🗑️ مسح كل الأدلة", key="lit_reset"):
+                    st.session_state.lit_evidence_list = []
+                    st.rerun()
+
+    # ── تبويب ٢: مقارنة التسوية بالتقاضي ─────────────────
+    with lit_tabs[1]:
+        st.markdown("### 💰 حاسبة التسوية مقابل التقاضي")
+        st.caption("هل الأفضل أن تسوي ودياً أم تذهب للمحكمة؟")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            total_claim = st.number_input("إجمالي المطالبة (ريال):", min_value=1000.0, value=50000.0, step=1000.0, key="settle_claim")
+        with col2:
+            case_type = st.selectbox("نوع القضية:", list(lt.SettlementCalculator.SETTLEMENT_RANGES.keys()), key="settle_type")
+
+        if st.button("💰 احسب نطاق التسوية", use_container_width=True, key="btn_settle_calc"):
+            result = lt.settlement_calculator.calculate_settlement_range(total_claim, case_type)
+            info = lt.SettlementCalculator.SETTLEMENT_RANGES.get(case_type, {})
+
+            st.markdown(f"""
+            
+
+ 
+## نطاق التسوية المقبول
+
+ 
+الحد الأدنى: **{result['min_settlement']:,.0f} ريال** ({info.get('min_percent', 50)}%)
+
+ 
+الحد الأقصى: **{result['max_settlement']:,.0f} ريال** ({info.get('max_percent', 80)}%)
+
+ 
+التسوية الموصى بها: **{result['recommended_settlement']:,.0f} ريال**
+
+ 
+
+""", unsafe_allow_html=True)
+            st.info(f"📝 {result['settlement_note']}")
+
+            st.markdown("#### ⚖️ مقارنة: التسوية × التقاضي")
+            col_s, col_l = st.columns(2)
+            lit_time = result['litigation_time']
+            lit_cost = result['litigation_cost']
+            with col_s:
+                st.markdown(f"""
+                
+##### 🤝 التسوية الودية
+- المبلغ: **{result['min_settlement']:,.0f}** ~ **{result['max_settlement']:,.0f} ريال**
+- المدة: ⚡ أيام إلى أسابيع
+- التكاليف: 0 ريال
+- الضغط النفسي: منخفض
+""", unsafe_allow_html=True)
+            with col_l:
+                st.markdown(f"""
+                
+##### 🏛️ التقاضي
+- المبلغ المتوقع: **{result['net_litigation']:,.0f} ريال** (صافي)
+- المدة: 🕐 **{lit_time['min_months']}~{lit_time['max_months']} شهر**
+- أتعاب المحاماة: ~**{lit_cost['lawyer_fee']:,.0f} ريال**
+- مصاريف أخرى: ~**{lit_cost['admin_cost'] + lit_cost['time_cost']:,} ريال**
+- الضغط النفسي: مرتفع
+""", unsafe_allow_html=True)
+
+            st.markdown("---")
+            st.markdown(f"### {result['recommendation']}")
+
+    # ── تبويب ٣: المخطط الزمني للتقاضي ─────────────────
+    with lit_tabs[2]:
+        st.markdown("### 📅 المخطط الزمني لإجراءات التقاضي")
+        st.caption("تعرف على مراحل التقاضي والمدة المتوقعة لكل مرحلة")
+
+        case_type_timeline = st.selectbox(
+            "نوع القضية:",
+            ["فصل تعسفي", "نهاية الخدمة", "تأخير راتب", "إصابة عمل", "الإجازات", "عام"],
+            key="timeline_type"
+        )
+
+        if st.button("📅 اعرض المخطط الزمني", use_container_width=True, key="btn_timeline"):
+            timeline = lt.litigation_timeline.get_full_timeline(case_type_timeline)
+            st.markdown(f"""
+            
+
+ 
+## المدة الإجمالية المتوقعة: {timeline['total_estimated_months']} شهر
+
+ 
+المدة حتى الحكم الابتدائي: **{timeline['from_start_to_judgment_months']} شهر**
+
+ 
+
+""", unsafe_allow_html=True)
+            st.info(timeline["important_note"])
+            if timeline["first_stage_note"]:
+                st.success(f"💡 نصيحة للشكوى الأولية: {timeline['first_stage_note']}")
+
+            st.markdown("### 🔄 مراحل التقاضي:")
+            for stage in timeline["stages"]:
+                st.markdown(f"""
+                
+
+ 
+#### {stage['icon']} المرحلة {stage['stage']}: {stage['name']}
+
+ 
+⏱️ المدة: {stage['duration_text']}
+
+ 
+📝 {stage['description']}
+
+ 
+⚡ الإجراء: {stage['action']}
+
+ 
+📤 النتيجة المتوقعة: {stage['outcome']}
+
+ 
+
+""", unsafe_allow_html=True)
+
+    # ── تبويب ٤: صياغة لائحة الدعوى ─────────────────────
+    with lit_tabs[3]:
+        st.markdown("### 📝 مساعد صياغة لائحة الدعوى")
+        st.caption("املأ البيانات ليتم توليد مسودة لائحة دعوى جاهزة")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            plaintiff_name = st.text_input("اسم المدعي:", placeholder="الاسم الكامل", key="draft_plaintiff")
+            plaintiff_id = st.text_input("رقم الهوية:", placeholder="رقم الهوية/الإقامة", key="draft_id")
+            plaintiff_nationality = st.text_input("الجنسية:", placeholder="سعودي / مقيم", key="draft_nat")
+            job_title = st.text_input("المسمى الوظيفي:", placeholder="مثلاً: محاسب", key="draft_job")
+            start_date = st.date_input("تاريخ بداية العمل:", key="draft_start")
+        with col2:
+            defendant_name = st.text_input("اسم المدعى عليه (الشركة):", placeholder="اسم الشركة", key="draft_defendant")
+            defendant_cr = st.text_input("السجل التجاري:", placeholder="رقم السجل", key="draft_cr")
+            basic_salary = st.number_input("الراتب الأساسي:", min_value=0.0, value=10000.0, key="draft_salary")
+            end_date = st.date_input("تاريخ نهاية العمل:", key="draft_end")
+            case_type_draft = st.selectbox(
+                "نوع القضية:",
+                ["فصل تعسفي", "نهاية الخدمة", "تأخير راتب", "إصابة عمل", "أخرى"],
+                key="draft_type"
+            )
+
+        st.markdown("#### 📝 الوقائع (كل واقعة في سطر):")
+        facts_text = st.text_area(
+            "اكتب الوقائع — كل سطر يصبح واقعة مرقمة:",
+            height=120,
+            placeholder="تم توظيفي بتاريخ...\nتم فصلي بدون سابق إنذار...\nلم أستلم مستحقاتي...",
+            key="draft_facts"
+        )
+
+        col_c, col_e = st.columns(2)
+        with col_c:
+            st.markdown("#### 💰 المطالبات:")
+            claims_text = st.text_area(
+                "اكتب المطالبات — كل سطر يصبح مطالبة:",
+                height=100,
+                placeholder="مكافأة نهاية الخدمة: 50,000 ريال\nتعويض الفصل التعسفي: 30,000 ريال",
+                key="draft_claims"
+            )
+        with col_e:
+            st.markdown("#### 📎 الأدلة:")
+            evidence_text = st.text_area(
+                "اكتب الأدلة — كل سطر يصبح دليلاً:",
+                height=100,
+                placeholder="عقد العمل المؤرخ في ...\nكشوف الرواتب لآخر 6 أشهر",
+                key="draft_evidence"
+            )
+
+        st.markdown("#### 📚 المواد القانونية:")
+        articles_options = st.multiselect(
+            "اختر المواد ذات الصلة:",
+            ["77 (الفصل التعسفي)", "84 (نهاية الخدمة)", "90 (تأخير الراتب)",
+             "106 (العمل الإضافي)", "109 (الإجازة)", "131 (إصابة العمل)",
+             "155 (التأديب)", "222 (التقادم)"],
+            key="draft_articles"
+        )
+
+        if st.button("📝 ولّد مسودة لائحة الدعوى", use_container_width=True, key="btn_draft"):
+            if not plaintiff_name or not defendant_name:
+                st.warning("الرجاء إدخال اسم المدعي والمدعى عليه على الأقل")
+            else:
+                article_nums = [a.split("(")[1].split(")")[0] if "(" in a else a for a in articles_options]
+                case_data = {
+                    "plaintiff_name": plaintiff_name, "plaintiff_id": plaintiff_id,
+                    "plaintiff_nationality": plaintiff_nationality, "defendant_name": defendant_name,
+                    "defendant_cr": defendant_cr, "job_title": job_title,
+                    "start_date": start_date.strftime("%Y-%m-%d"),
+                    "end_date": end_date.strftime("%Y-%m-%d"),
+                    "basic_salary": basic_salary, "case_type": case_type_draft,
+                    "facts": [f.strip() for f in facts_text.strip().split("\n") if f.strip()],
+                    "claims": [c.strip() for c in claims_text.strip().split("\n") if c.strip()],
+                    "evidence": [e.strip() for e in evidence_text.strip().split("\n") if e.strip()],
+                    "articles": article_nums if article_nums else ["77", "84"],
+                }
+                lawsuit_text = lt.lawsuit_drafter.draft_lawsuit(case_data)
+                st.markdown("### 📜 مسودة لائحة الدعوى:")
+                st.markdown(lawsuit_text)
+                st.download_button(
+                    "📥 تحميل اللائحة (TXT)",
+                    data=lawsuit_text,
+                    file_name=f"لائحة_دعوى_{plaintiff_name}_{datetime.now().strftime('%Y%m%d')}.txt",
+                    mime="text/plain",
+                    use_container_width=True,
+                )
