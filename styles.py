@@ -4,7 +4,7 @@ MAIN_CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Zain:wght@400;500;700;900&display=swap');
 font-family: 'Zain', sans-serif !important;
 
-*, *::before, *::after { box-sizing: border-box !important; font-family: 'Tajawal', sans-serif !important; }
+*, *::before, *::after { box-sizing: border-box !important; font-family: 'Zain', sans-serif !important; }
 html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stBottom"] {
     background-color: #1c1c1e !important; color: #ffffff !important; direction: rtl !important;
 }
@@ -12,7 +12,7 @@ html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"]
 .main .block-container { max-width: 900px !important; padding: 0 16px 80px !important; margin: 0 auto !important; }
 
 .app-title {
-    text-align: center; padding: 40px 0 10px; font-size: 6.4rem; font-weight: 900;
+    text-align: center; padding: 40px 0 10px; font-size: 6.4rem; font-weight: 700;
     background: linear-gradient(135deg, #ffffff, #4a9eff);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     background-clip: text; text-shadow: 0 10px 30px rgba(0,0,0,0.4);
