@@ -16,6 +16,12 @@ import storage
 import api
 import tools
 import styles 
+import ui
+
+st.markdown(styles.MAIN_CSS, unsafe_allow_html=True)  # يسحب التنسيق
+...
+ui.render_persona_selection()  # يسحب الواجهة
+
 
 st.set_page_config(
     page_title="FÜHRER — المنصة القانونية الاحترافية",
