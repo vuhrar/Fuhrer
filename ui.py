@@ -21,7 +21,7 @@ def render_persona_selection():
             <div class='pc-sub'>متخصص في الترافع، صياغة المذكرات، والتحليل الاستراتيجي للقضايا العمالية.</div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("بدء بصفتي محامي", key="pick_lawyer", use_container_width=True):
+        if st.button("بدء بصفتي محامي", key="btn_lawyer", use_container_width=True):
             select_persona("lawyer")
 
     with col2:
@@ -32,7 +32,7 @@ def render_persona_selection():
             <div class='pc-sub'>خبير في الامتثال، التسويات الودية، وحساب المستحقات المالية العمالية.</div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("بدء بصفتي مستشار", key="pick_advisor", use_container_width=True):
+        if st.button("بدء بصفتي مستشار", key="btn_advisor", use_container_width=True):
             select_persona("advisor")
 
 def select_persona(pid):
