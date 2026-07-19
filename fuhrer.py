@@ -166,22 +166,22 @@ if st.session_state.show_panel == "full":
 st.markdown("<div class='app-title'>FÜHRER</div>", unsafe_allow_html=True)
 
 if st.session_state.persona is None:
-    ui.render_persona_selection()
+    styles.render_persona_selection()
 else:
-    ui.render_nav_bar()
-    ui.render_persona_badge()
+    styles.render_nav_bar()
+    styles.render_persona_badge()
     
     nav = st.session_state.active_nav
     if nav == "chat":
-        ui.render_chat()
+        styles.render_chat()
     elif nav == "tool_exec":
-        ui.render_tool_execution()
+        styles.render_tool_execution()
     elif nav == "sessions":
-        ui.render_sessions()
+        styles.render_sessions()
     elif nav == "analysis":
-        ui.render_analysis()
+        styles.render_analysis()
     elif nav == "cases":
-        ui.render_cases()
+        styles.render_cases()
     elif nav == "switch":
         st.session_state.persona = None
         st.session_state.active_nav = "chat"
