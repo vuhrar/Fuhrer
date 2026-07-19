@@ -18,7 +18,7 @@ import tools
 import styles 
 import ui
 
-st.markdown(ui.MAIN_CSS, unsafe_allow_html=True)  # يسحب التنسيق
+st.markdown(styles.MAIN_CSS, unsafe_allow_html=True)  # يسحب التنسيق
 ...
 ui.render_persona_selection()  # يسحب الواجهة
 
