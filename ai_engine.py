@@ -98,31 +98,75 @@ _PRESETS_RAW: List[Dict] = [
         "model": "gpt-4o-mini", "fmt": "openai", "free": False, "requires_key": True,
         "description": "اقتصادي وذكي من OpenAI"
     },
-    # --- Hugging Face (مجاني) ---
+    # --- Hugging Face Inference API (مجاني) ---
     {
-        "name": "Qwen2.5 72B 🌟 (مجاني)",
+        "name": "HF Qwen2.5 72B 🌟 (مجاني)",
         "url": "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-72B-Instruct",
         "model": "Qwen/Qwen2.5-72B-Instruct", "fmt": "huggingface", "free": True, "requires_key": True,
-        "description": "نموذج Qwen الضخم — مجاني عبر HuggingFace"
+        "description": "نموذج Qwen الضخم — مجاني عبر HuggingFace Inference API"
     },
     {
-        "name": "Mistral 7B 🌊 (مجاني)",
+        "name": "HF Mistral 7B 🌊 (مجاني)",
         "url": "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3",
         "model": "mistralai/Mistral-7B-Instruct-v0.3", "fmt": "huggingface", "free": True, "requires_key": True,
-        "description": "Mistral الموثوق — مجاني عبر HuggingFace"
+        "description": "Mistral الموثوق — مجاني عبر HuggingFace Inference API"
     },
-    # --- Specialized Legal Model ---
     {
-        "name": "Führer Law Brain (Qwen 0.6B) 🧠",
-        "url": "https://api.openai.com/v1/chat/completions",
-        "model": "distil-qwen3-0.6b-shellper-q4_k_m", "fmt": "openai", "free": False, "requires_key": True,
-        "description": "عقل البرنامج المتخصص — متعلم من الأنظمة واللوائح السعودية المرفوعة"
+        "name": "HF Llama 3.3 70B 🦙 (مجاني)",
+        "url": "https://api-inference.huggingface.co/models/meta-llama/Llama-3.3-70B-Instruct",
+        "model": "meta-llama/Llama-3.3-70B-Instruct", "fmt": "huggingface", "free": True, "requires_key": True,
+        "description": "Llama 3.3 من Meta — مجاني عبر HuggingFace"
+    },
+    # --- DeepSeek ---
+    {
+        "name": "DeepSeek V3 💎",
+        "url": "https://api.deepseek.com/v1/chat/completions",
+        "model": "deepseek-chat", "fmt": "openai", "free": False, "requires_key": True,
+        "description": "DeepSeek-V3 — نموذج صيني قوي بسعر منخفض جداً"
+    },
+    {
+        "name": "DeepSeek R1 🔬 (تفكير)",
+        "url": "https://api.deepseek.com/v1/chat/completions",
+        "model": "deepseek-reasoner", "fmt": "openai", "free": False, "requires_key": True,
+        "description": "DeepSeek-R1 — نموذج التفكير المتسلسل للمسائل المعقدة"
+    },
+    # --- Together AI ---
+    {
+        "name": "Together Llama 3.3 70B ⚡",
+        "url": "https://api.together.xyz/v1/chat/completions",
+        "model": "meta-llama/Llama-3.3-70B-Instruct-Turbo", "fmt": "openai", "free": False, "requires_key": True,
+        "description": "Llama 3.3 70B Turbo عبر Together AI — سريع وقوي"
+    },
+    {
+        "name": "Together Qwen 2.5 72B 🌐",
+        "url": "https://api.together.xyz/v1/chat/completions",
+        "model": "Qwen/Qwen2.5-72B-Instruct-Turbo", "fmt": "openai", "free": False, "requires_key": True,
+        "description": "Qwen 2.5 72B عبر Together AI — ممتاز للعربية"
+    },
+    {
+        "name": "Together DeepSeek R1 🔬",
+        "url": "https://api.together.xyz/v1/chat/completions",
+        "model": "deepseek-ai/DeepSeek-R1", "fmt": "openai", "free": False, "requires_key": True,
+        "description": "DeepSeek R1 كامل عبر Together AI"
+    },
+    {
+        "name": "Together Mixtral 8x7B 🔥",
+        "url": "https://api.together.xyz/v1/chat/completions",
+        "model": "mistralai/Mixtral-8x7B-Instruct-v0.1", "fmt": "openai", "free": False, "requires_key": True,
+        "description": "Mixtral 8x7B عبر Together AI — نافذة سياق كبيرة"
+    },
+    # --- Führer Law Brain (محلي عبر LM Studio) ---
+    {
+        "name": "Führer Law Brain 🧠 (محلي)",
+        "url": "http://localhost:1234/v1/chat/completions",
+        "model": "distil-qwen3-0.6b-shellper-q4_k_m", "fmt": "openai", "free": True, "requires_key": False,
+        "description": "عقل فُهرار المتخصص — شغّل النموذج في LM Studio على جهازك ثم اتصل"
     },
     # --- مخصص ---
     {
         "name": "⚙️ مخصص (Custom API)",
         "url": "", "model": "", "fmt": "openai", "free": False, "requires_key": True,
-        "description": "اتصل بأي API متوافق مع OpenAI"
+        "description": "اتصل بأي API متوافق مع OpenAI (LM Studio / Ollama / غيره)"
     },
 ]
 
@@ -423,8 +467,14 @@ def get_all_models_grouped() -> Dict[str, List[Dict]]:
             provider = "Anthropic Claude"
         elif "GPT" in name:
             provider = "OpenAI"
-        elif "Qwen" in name or "Mistral" in name or "Llama" in name:
+        elif "HF " in name:
             provider = "HuggingFace (مجاني)"
+        elif "DeepSeek" in name and "Together" not in name:
+            provider = "DeepSeek"
+        elif "Together" in name:
+            provider = "Together AI"
+        elif "Führer" in name or "Brain" in name:
+            provider = "Führer Brain (محلي)"
         else:
             provider = "مخصص"
         groups.setdefault(provider, []).append(get_preset_info(name))

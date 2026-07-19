@@ -35,7 +35,7 @@ _defaults = {
     "current_sid": None,
     "current_msgs": [],
     "docs_text": [],
-    "preset_name": _saved.get("preset_name", "Führer Law Brain (Qwen 0.6B) 🧠"),
+    "preset_name": _saved.get("preset_name", "Groq LLaMA 3.3 70B 🚀 (مجاني)"),
     "api_key": _saved.get("api_key", ""),
     "custom_url": _saved.get("custom_url", ""),
     "custom_model": _saved.get("custom_model", ""),
@@ -69,24 +69,78 @@ if st.session_state.show_panel == "full":
         t1, t2, t3 = st.tabs(["الربط مع الخادم", "المستندات القانونية", "إدارة النظام"])
         
         with t1:
+            # اختيار المزود
+            preset_keys = list(ai_engine.PRESETS.keys())
+            current_idx = preset_keys.index(st.session_state.preset_name) if st.session_state.preset_name in preset_keys else 0
+            st.session_state.preset_name = st.selectbox("🤖 مزود الذكاء الاصطناعي", preset_keys, index=current_idx)
+
+            selected = ai_engine.PRESETS[st.session_state.preset_name]
+
+            # بطاقة معلومات المزود
+            is_local = "Führer" in st.session_state.preset_name and "محلي" in st.session_state.preset_name
+            badge = "🟢 مجاني" if selected.free else "🔵 مدفوع"
+            st.markdown(
+                f"<div style='background:#f1f5f9;border-right:4px solid #6366f1;padding:10px 14px;"
+                f"border-radius:8px;margin:6px 0 12px;font-size:0.85rem;'>"
+                f"<b>{selected.name}</b> &nbsp; {badge}<br>"
+                f"<span style='color:#64748b;'>{selected.description}</span><br>"
+                f"<code style='font-size:0.75rem;color:#475569;'>{selected.url or 'localhost'}</code>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+
+            # تعليمات Führer Brain المحلي
+            if is_local:
+                st.info(
+                    "🧠 **Führer Law Brain — نموذج محلي**\n\n"
+                    "لتشغيل هذا النموذج:\n"
+                    "1. حمّل [LM Studio](https://lmstudio.ai) على حاسبك\n"
+                    "2. افتح النموذج: `distil-qwen3-0.6b-shellper-q4_k_m`\n"
+                    "3. شغّل الخادم المحلي على المنفذ **1234**\n"
+                    "4. اضغط 'اختبار الاتصال' — لا يلزم مفتاح API"
+                )
+
+            # روابط الحصول على مفاتيح API
+            _key_links = {
+                "Groq":     ("مجاني من", "https://console.groq.com/keys"),
+                "Gemini":   ("مجاني من", "https://aistudio.google.com/app/apikey"),
+                "Claude":   ("من", "https://console.anthropic.com/settings/keys"),
+                "GPT":      ("من", "https://platform.openai.com/api-keys"),
+                "HF ":      ("مجاني من", "https://huggingface.co/settings/tokens"),
+                "DeepSeek": ("من", "https://platform.deepseek.com/api_keys"),
+                "Together": ("من", "https://api.together.xyz/settings/api-keys"),
+            }
+            for keyword, (label, link) in _key_links.items():
+                if keyword in st.session_state.preset_name:
+                    st.caption(f"🔑 احصل على مفتاح API {label}: [{link}]({link})")
+                    break
+
             col_a, col_b = st.columns(2)
             with col_a:
-                st.session_state.preset_name = st.selectbox("مزود الذكاء الاصطناعي", list(ai_engine.PRESETS.keys()), 
-                    index=list(ai_engine.PRESETS.keys()).index(st.session_state.preset_name) if st.session_state.preset_name in ai_engine.PRESETS else 0)
-                st.session_state.api_key = st.text_input("مفتاح API", value=st.session_state.api_key, type="password")
+                if not is_local:
+                    st.session_state.api_key = st.text_input(
+                        "مفتاح API", value=st.session_state.api_key, type="password",
+                        placeholder="أدخل المفتاح هنا..."
+                    )
             with col_b:
-                if st.session_state.preset_name == "⚙️ مخصص":
-                    st.session_state.custom_url = st.text_input("رابط API المخصص", value=st.session_state.custom_url)
+                if "مخصص" in st.session_state.preset_name:
+                    st.session_state.custom_url   = st.text_input("رابط API المخصص",    value=st.session_state.custom_url)
                     st.session_state.custom_model = st.text_input("اسم النموذج المخصص", value=st.session_state.custom_model)
-            
+
             if st.button("🔌 اختبار وتفعيل الربط", use_container_width=True):
                 with st.spinner("جاري التحقق من استجابة الخادم..."):
-                    ok, msg = ai_engine.test_connection(st.session_state.preset_name, st.session_state.api_key, 
-                        st.session_state.custom_url, st.session_state.custom_model, st.session_state.custom_fmt)
+                    ok, msg = ai_engine.test_connection(
+                        st.session_state.preset_name, st.session_state.api_key,
+                        st.session_state.custom_url, st.session_state.custom_model,
+                        st.session_state.custom_fmt
+                    )
                     st.session_state.connection_status = "connected" if ok else "failed"
                     st.session_state.connection_msg = msg
                     if ok:
-                        storage.save_settings({"preset_name": st.session_state.preset_name, "api_key": st.session_state.api_key})
+                        storage.save_settings({
+                            "preset_name": st.session_state.preset_name,
+                            "api_key":     st.session_state.api_key
+                        })
                         st.toast("✅ تم تفعيل الربط بنجاح")
                     st.rerun()
         
