@@ -1,49 +1,36 @@
-# Führar - النظام القانوني الذكي للقانون العمالي السعودي (CLI)
+# Führer - النظام القانوني الذكي للقانون العمالي السعودي (CLI + HTTP)
 
-**Führar** هو تطبيق تحليلي قانوني متقدم موجه لمعالجة قضايا القانون العمالي السعودي. تم تعديل المشروع ليكون قابلًا للتشغيل محليًا عبر واجهة سطر الأوامر (CLI) ودون اعتماد على Streamlit.
+هذا المشروع مُعدّ الآن للعمل محليًا عبر CLI ومع واجهة HTTP بسيطة (FastAPI) حتى تتمكن من الوصول إليه من جهازك (بما في ذلك iPhone) باستخدام مفاتيح API لمزودي النماذج.
 
-ميزات النسخة الحالية:
-- معالجة مستندات PDF/DOCX/TXT/JSON/CSV/صور (OCR)
-- محرك ذكاء اصطناعي هجيني: محاولة استخدام نموذج محلي أولًا (إن وُجد) ثم الرجوع إلى مزود سحابي وفقًا للإعدادات
-- أوامر CLI لتحليل مستندات، استدعاء النماذج، واختبار الاتصال
-- دعم تشغيل محلي بدون واجهة ويب
+ما تم إضافته:
+- واجهة HTTP بسيطة (FastAPI) في server.py لاستدعاء وظائف المعالجة والنماذج عبر REST.
+- ملف .env.example لتخزين مفاتيح ومحددات الاتصال (OpenAI / Anthropic / HuggingFace / إعدادات مخصصة).
+- تكامل كامل مع ai_engine.call_ai (يدعم جميع المزودين الموجودين في ai_engine.PRESETS).
+- توجيهات سريعة لتشغيل الخادم محليًا ومن الجهاز المحمول.
 
-تشغيل سريع (CLI):
+متطلبات سريعة:
+- Python 3.10+
+- تثبيت المتطلبات:
+  ```bash
+  python -m venv .venv
+  source .venv/bin/activate
+  pip install -r requirements.txt
+  ```
 
-1. إعداد البيئة:
-   - Python 3.10+
-   - إنشاء بيئة افتراضية:
-     ```bash
-     python -m venv .venv
-     source .venv/bin/activate   # عل�� ويندوز: .venv\Scripts\activate
-     pip install -r requirements.txt
-     ```
+إعداد المتغيرات (أنشئ ملف .env في جذر المشروع واملأه وفق .env.example)
 
-2. إعداد المتغيرات البيئية (يمكنك إنشاء ملف `.env`):
-   - `API_KEY` - مفتاح المزود السحابي (OpenAI/Anthropic/HuggingFace) إن رغبت
-   - `PRESET_NAME` - اسم النموذج الافتراضي من ai_engine.PRESET_NAMES
-   - أمثلة أخرى: `CUSTOM_URL`, `CUSTOM_MODEL`, `CUSTOM_FMT`
+تشغيل الخادم (محلي):
+```bash
+# تشغيل خادم FastAPI عبر Uvicorn
+uvicorn server:app --host 0.0.0.0 --port 8000
+```
 
-3. استخدام CLI:
-   - استخراج ومعالجة ملفات:
-     ```bash
-     python fuhrer.py process path/to/doc1.pdf path/to/doc2.docx
-     ```
-   - تحليل نص عبر النموذج:
-     ```bash
-     python fuhrer.py analyze "ضع هنا سؤالك أو بيانات التحليل"
-     ```
-   - عرض النماذج المتاحة:
-     ```bash
-     python fuhrer.py list-models
-     ```
-   - اختبار الاتصال بنموذج:
-     ```bash
-     python fuhrer.py test-conn --preset "GPT-4o 🏆" --api-key "$OPENAI_KEY"
-     ```
+استخدام من iPhone (مثال عبر curl أو Shortcuts):
+- استدعاء تحليل نص مباشر:
+  POST https://<your-host>:8000/analyze
+  body JSON: {"prompt": "نص التحليل هنا", "preset_name": "GPT-4o 🏆"}
 
-ملاحظات تقنية:
-- تمت إزالة كل تبعيات واجهة Streamlit والاعتماد على واجهة سطر الأوامر لتشغيل التطبيق محليًا.
-- المشروع يدعم العمل بنموذج هجيني: محليًا عبر إعدادات نماذج مثل LM Studio/Hugging Face المحلية، ثم الرجوع لمزود سحابي عند الحاجة.
+- رفع ملفات وتحليلها:
+  POST https://<your-host>:8000/upload (multipart/form-data) حقل files
 
-لمزيد من التطوير: يمكنك إضافة واجهة ويب جديدة (FastAPI/Flask) أو دمج llama.cpp/ollama كتوفير نموذج محلي أسرع.
+أُشير إلى أن تشغيل نموذج محلي فعلي يتطلب موارد — هذا المشروع مصمم للعمل مع نماذج بعيدة عبر مفاتيح API (OpenAI / Anthropic / HuggingFace) ليعمل فورًا من هاتفك.
