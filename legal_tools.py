@@ -66,6 +66,14 @@ PERSONA_TOOLS = {
         ("📊", "تقرير المخاطر القانونية",     "risk_report"),
         ("🔎", "تحليل البيانات التعاقدية",    "extractor"),
     ],
+    "labor_consultant": [
+        ("💰", "حساب المستحقات المالية",      "calculator"),
+        ("🤝", "تقييم استراتيجية التسوية",    "settlement"),
+        ("📄", "مراجعة وامتثال العقود",       "contract_review"),
+        ("🔍", "البحث في الأنظمة واللوائح",   "law_search"),
+        ("📊", "تقرير المخاطر القانونية",     "risk_report"),
+        ("🔎", "تحليل البيانات التعاقدية",    "extractor"),
+    ],
 }
 
 # ======================
@@ -121,7 +129,8 @@ def get_persona_display_name(persona: str) -> str:
     """Get professional display name for persona"""
     names = {
         "lawyer": "المحامي والمستشار القانوني",
-        "advisor": "المستشار العمالي"
+        "advisor": "المستشار القانوني",
+        "labor_consultant": "المستشار العمالي",
     }
     return names.get(persona, persona)
 
