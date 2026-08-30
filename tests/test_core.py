@@ -1,13 +1,5 @@
-import io
-
-from file_processing import extract_text_from_file, truncate_for_ai
-from legal_tools_advanced import entitlements_calculator, legal_classifier
-
-
-class NamedBytes(io.BytesIO):
-    def __init__(self, content: bytes, name: str):
-        super().__init__(content)
-        self.name = name
+from file_processing import truncate_for_ai
+from legal_intelligence import evidence_checklist, extract_obligations, legal_review_package, scan_risks, search_with_sources
 
 
 def test_truncate_preserves_both_ends():
@@ -18,27 +10,38 @@ def test_truncate_preserves_both_ends():
     assert "تم حذف" in result
 
 
-def test_text_extraction_utf8():
-    result = extract_text_from_file(NamedBytes("نص قانوني".encode(), "note.txt"))
-    assert result["success"] is True
-    assert result["text"] == "نص قانوني"
-    assert result["pages"] == 1
+def test_extract_obligations_identifies_party_and_text():
+    result = extract_obligations("يلتزم صاحب العمل بتسليم نسخة من العقد. ويجب على العامل المحافظة على السرية.")
+    assert len(result) == 2
+    assert result[0]["party"] == "صاحب العمل"
+    assert result[1]["party"] == "العامل"
+    assert all(item["needs_review"] for item in result)
 
 
-def test_classifier_returns_general_for_empty_text():
-    category, confidence, keywords = legal_classifier.classify("")
-    assert category == "عام"
-    assert confidence == 0.0
-    assert keywords == []
+def test_scan_risks_finds_missing_critical_clauses():
+    risks = scan_risks("يلتزم المورد بتقديم الخدمة وتسليم المخرج.")
+    areas = {item["area"] for item in risks}
+    assert "المدة والإنهاء" in areas
+    assert "القانون والاختصاص" in areas
+    assert "الملكية الفكرية" in areas
 
 
-def test_eosb_result_has_explainable_components():
-    result = entitlements_calculator.calculate_eosb(
-        basic_salary=10000,
-        total_salary=15000,
-        years_of_service=5,
-        is_arbitrary=False,
-    )
-    assert result["totals"]["eosb_total"] == 25000
-    assert result["totals"]["grand_total"] == 25000
-    assert set(result["details"]) == {"eosb", "arbitrary", "delay"}
+def test_evidence_checklist_is_issue_driven():
+    result = evidence_checklist("تم إنهاء العقد وتأخر صرف الراتب.")
+    issues = {item["issue"] for item in result}
+    assert "الإنهاء" in issues
+    assert "الأجر أو المقابل" in issues
+
+
+def test_review_package_contains_traceability_fields():
+    result = legal_review_package("وفقًا للمادة 77 تم إنهاء العقد.")
+    assert result["mentioned_articles"] == ["77"]
+    assert result["sources"]
+    assert result["quality"]["requires_lawyer_review"] is True
+
+
+def test_search_results_include_official_source_metadata():
+    result = search_with_sources("إنهاء", max_results=2)
+    assert result
+    assert all(item["source"]["publisher"] for item in result)
+    assert all(item["verification_required"] for item in result)

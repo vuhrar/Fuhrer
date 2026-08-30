@@ -1,93 +1,15 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0e1621">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="manifest" href="/manifest.json">
-  <link rel="stylesheet" href="/static/styles.css">
-  <title>Führer | المساعد القانوني الشخصي</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0e1621"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="manifest" href="/manifest.json"><link rel="stylesheet" href="/static/styles.css"><title>Führer | منصة العمل القانوني</title>
 </head>
-<body>
-  <main class="shell">
-    <section id="loginView" class="card login-card">
-      <div class="brand-mark">⚖️</div>
-      <h1>Führer</h1>
-      <p class="muted">المساعد القانوني الشخصي</p>
-      <div class="notice"><strong>استخدام خاص لمستخدم واحد.</strong><br>لن يتم إنشاء حسابات أو مشاركة القضايا.</div>
-      <label for="tokenInput">رمز الوصول</label>
-      <input id="tokenInput" type="password" autocomplete="current-password" placeholder="أدخل الرمز الخاص">
-      <button id="loginButton" class="primary">دخول آمن</button>
-      <p id="loginError" class="error" hidden></p>
-    </section>
-
-    <section id="appView" hidden>
-      <header class="topbar">
-        <div><span class="brand-small">⚖️</span><strong>Führer</strong><span class="muted"> · خاص</span></div>
-        <button id="logoutButton" class="ghost">خروج</button>
-      </header>
-      <section class="hero">
-        <h1>المساعد القانوني الشخصي</h1>
-        <p>تحليل أولي، بحث في المعرفة القانونية، حسابات مساعدة، ومعالجة مستنداتك.</p>
-      </section>
-      <div class="notice"><strong>تنبيه:</strong> النتائج مساعدة أولية وليست بديلاً عن مراجعة محامٍ مؤهل أو التحقق من النظام والوقائع والإصدار النافذ.</div>
-
-      <nav class="tabs" aria-label="الأدوات">
-        <button class="tab active" data-panel="analyzePanel">تحليل</button>
-        <button class="tab" data-panel="searchPanel">بحث قانوني</button>
-        <button class="tab" data-panel="calcPanel">حاسبة</button>
-        <button class="tab" data-panel="filesPanel">مستندات</button>
-      </nav>
-
-      <section id="analyzePanel" class="panel active card">
-        <h2>تحليل نص أو عقد</h2>
-        <p class="muted">أدخل النص، ثم اطلب استخراج النقاط الأساسية والالتزامات والمخاطر ونقاط التفاوض.</p>
-        <label for="analysisText">النص</label>
-        <textarea id="analysisText" rows="9" placeholder="ألصق نص العقد أو الوقائع هنا..."></textarea>
-        <label for="analysisTask">نوع المهمة</label>
-        <select id="analysisTask">
-          <option value="contract_review">مراجعة عقد: نقاط أساسية، التزامات، مخاطر، تفاوض</option>
-          <option value="case_analysis">تحليل قضية قانونية</option>
-          <option value="summary">تلخيص منظم</option>
-        </select>
-        <button id="analyzeButton" class="primary">بدء التحليل</button>
-        <div id="analysisResult" class="result" hidden></div>
-      </section>
-
-      <section id="searchPanel" class="panel card" hidden>
-        <h2>البحث القانوني</h2>
-        <label for="searchQuery">عبارة البحث</label>
-        <input id="searchQuery" placeholder="مثال: مكافأة نهاية الخدمة">
-        <button id="searchButton" class="primary">بحث</button>
-        <div id="searchResult" class="result" hidden></div>
-      </section>
-
-      <section id="calcPanel" class="panel card" hidden>
-        <h2>حاسبة مكافأة نهاية الخدمة</h2>
-        <div class="grid two">
-          <div><label for="basicSalary">الراتب الأساسي</label><input id="basicSalary" type="number" min="0" value="10000"></div>
-          <div><label for="totalSalary">الراتب الإجمالي</label><input id="totalSalary" type="number" min="0" value="15000"></div>
-          <div><label for="yearsService">سنوات الخدمة</label><input id="yearsService" type="number" min="0" step="0.1" value="5"></div>
-          <div><label for="delayMonths">أشهر تأخير الراتب</label><input id="delayMonths" type="number" min="0" value="0"></div>
-        </div>
-        <label class="check"><input id="isArbitrary" type="checkbox" checked> فصل تعسفي محتمل</label>
-        <label class="check"><input id="resignation" type="checkbox"> استقالة</label>
-        <button id="calcButton" class="primary">احسب تقديريًا</button>
-        <div id="calcResult" class="result" hidden></div>
-      </section>
-
-      <section id="filesPanel" class="panel card" hidden>
-        <h2>رفع مستندات</h2>
-        <p class="muted">الحد الأقصى 5 ملفات، وبحد أقصى 25MB للملف. راجع النص المستخرج مع الأصل.</p>
-        <input id="fileInput" type="file" multiple accept=".pdf,.docx,.txt,.json,.csv,.png,.jpg,.jpeg,.bmp,.tiff,.webp">
-        <button id="uploadButton" class="primary">استخراج النص</button>
-        <div id="fileResult" class="result" hidden></div>
-      </section>
-      <footer>جلسة محلية خاصة · لا مشاركة · لا حسابات متعددة</footer>
-    </section>
-  </main>
-  <script src="/static/app.js"></script>
-</body>
-</html>
+<body><main class="shell">
+<section id="loginView" class="card login-card"><div class="brand-mark">⚖️</div><h1>Führer</h1><p class="muted">منصة العمل القانوني الخاصة</p><div class="notice"><strong>مستخدم واحد فقط.</strong><br>البيانات لا تُشارك من داخل التطبيق.</div><label for="tokenInput">رمز الوصول</label><input id="tokenInput" type="password" autocomplete="current-password" placeholder="أدخل الرمز الخاص"><button id="loginButton" class="primary">دخول آمن</button><p id="loginError" class="error" hidden></p></section>
+<section id="appView" hidden><header class="topbar"><div><span class="brand-small">⚖️</span><strong>Führer</strong><span class="muted"> · قانوني</span></div><button id="logoutButton" class="ghost">خروج</button></header>
+<section class="hero"><h1>مراجعة وتحليل قانوني</h1><p>أدوات عملية تستند إلى نصوص ومصادر رسمية، مع فصل واضح بين النص المستخرج والتحليل والافتراضات.</p></section><div class="notice"><strong>تنبيه مهني:</strong> النتائج مساعدة أولية. تحقق من الإصدار النافذ واستعن بمحامٍ مؤهل قبل الاعتماد أو الإجراء.</div>
+<nav class="tabs"><button class="tab active" data-panel="reviewPanel">مراجعة عقد</button><button class="tab" data-panel="searchPanel">مصادر وبحث</button><button class="tab" data-panel="evidencePanel">أدلة</button><button class="tab" data-panel="filesPanel">مستندات</button></nav>
+<section id="reviewPanel" class="panel card"><h2>مراجعة قانونية منظمة</h2><p class="muted">استخرج الالتزامات، البنود الناقصة، مؤشرات المخاطر، والمواد المذكورة. لا يعتمد النظام على تقدير مالي.</p><label for="analysisText">النص أو العقد</label><textarea id="analysisText" rows="10" placeholder="ألصق العقد أو الوقائع هنا..."></textarea><div class="grid two"><button id="reviewButton" class="primary">إنشاء حزمة المراجعة</button><button id="aiReviewButton" class="secondary">تحليل أعمق بالنموذج</button></div><div id="reviewResult" class="result" hidden></div></section>
+<section id="searchPanel" class="panel card" hidden><h2>البحث في المصادر القانونية</h2><label for="searchQuery">عبارة البحث أو رقم المادة</label><input id="searchQuery" placeholder="مثال: الإنهاء أو 77 أو السرية"><button id="searchButton" class="primary">بحث موثق</button><div id="searchResult" class="result" hidden></div><h3>المصادر الرسمية المعتمدة</h3><div id="sourcesResult" class="result"></div></section>
+<section id="evidencePanel" class="panel card" hidden><h2>قائمة الأدلة والإثبات</h2><p class="muted">تُبنى القائمة على موضوعات ظاهرة في النص ولا تُثبت الواقعة بذاتها.</p><label for="evidenceText">الوقائع أو العقد</label><textarea id="evidenceText" rows="8" placeholder="ألصق الوقائع أو بنود النزاع..."></textarea><button id="evidenceButton" class="primary">إنشاء قائمة الأدلة</button><div id="evidenceResult" class="result" hidden></div></section>
+<section id="filesPanel" class="panel card" hidden><h2>مستندات القضية</h2><p class="muted">الحد الأقصى 5 ملفات و25MB للملف. راجع النص المستخرج مع الوثيقة الأصلية.</p><input id="fileInput" type="file" multiple accept=".pdf,.docx,.txt,.json,.csv,.png,.jpg,.jpeg,.bmp,.tiff,.webp"><button id="uploadButton" class="primary">استخراج النص</button><div id="fileResult" class="result" hidden></div></section>
+<footer>مصادر رسمية · مستخدم واحد · لا مشاركة</footer></section></main><script src="/static/app.js"></script></body></html>

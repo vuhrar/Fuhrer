@@ -1,62 +1,22 @@
 (() => {
-  const $ = (id) => document.getElementById(id);
-  const tokenKey = "fuhrer_app_token";
+  const $ = id => document.getElementById(id), tokenKey = "fuhrer_app_token";
   let token = localStorage.getItem(tokenKey) || "";
   const headers = () => ({"Content-Type":"application/json","X-App-Token":token});
-
-  function show(id, html) { const el = $(id); el.hidden = false; el.innerHTML = html; }
-  function loading(id) { show(id, '<div class="loading">جارٍ التنفيذ…</div>'); }
-  function esc(value) { return String(value ?? "").replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"}[c])); }
-  async function api(url, options = {}) {
-    const response = await fetch(url, {...options, headers: {...headers(), ...(options.headers || {})}});
-    let body = {};
-    try { body = await response.json(); } catch (_) {}
-    if (!response.ok) throw new Error(body.detail || body.error || `HTTP ${response.status}`);
-    return body;
-  }
-  function taskPrompt(text, task) {
-    const instructions = {
-      contract_review: "راجع النص كمسودة مراجعة قانونية. استخرج: ملخصًا تنفيذيًا، الأطراف والنطاق والمدة، التزامات كل طرف، المقابل والدفع، السرية والملكية الفكرية، المسؤولية والضمانات، الإنهاء، القانون والاختصاص، المخاطر، البنود الناقصة، ونقاط تفاوض عملية. لا تفترض وقائع غير موجودة واذكر المواد التي تحتاج تحققًا.",
-      case_analysis: "حلل الوقائع قانونيًا تحليلًا أوليًا: التكييف المحتمل، الوقائع المؤثرة، الأدلة المطلوبة، نقاط القوة والضعف، المخاطر الإجرائية، والخيارات العملية. ميّز بوضوح بين النص الموجود والاستنتاج.",
-      summary: "لخّص النص في عناوين واضحة مع إبراز الالتزامات والمواعيد والمبالغ والمخاطر والعبارات التي تحتاج مراجعة."
-    };
-    return `${instructions[task]}\n\nالنص:\n${text}`;
-  }
-  async function login() {
-    const error = $("loginError"); error.hidden = true;
-    const value = $("tokenInput").value.trim();
-    if (!value) { error.textContent = "أدخل رمز الوصول."; error.hidden = false; return; }
-    token = value;
-    try { await api("/api/auth/verify", {method:"POST"}); localStorage.setItem(tokenKey, token); $("loginView").hidden = true; $("appView").hidden = false; }
-    catch (e) { token = ""; error.textContent = e.message; error.hidden = false; }
-  }
-  function logout() { token = ""; localStorage.removeItem(tokenKey); $("appView").hidden = true; $("loginView").hidden = false; $("tokenInput").value = ""; }
-  function activatePanel(panelId) { document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.panel === panelId)); document.querySelectorAll(".panel").forEach(p => { p.hidden = p.id !== panelId; p.classList.toggle("active", p.id === panelId); }); }
-
-  async function analyze() {
-    const text = $("analysisText").value.trim(); if (!text) return show("analysisResult", "اكتب النص أولًا.");
-    loading("analysisResult");
-    try { const body = await api("/api/analyze", {method:"POST", body:JSON.stringify({prompt:taskPrompt(text,$("analysisTask").value), system:"أنت مساعد قانوني سعودي حذر. لا تقدم نتيجة نهائية، واذكر حدود المعلومات والمصادر المطلوبة.")}); show("analysisResult", `<h3>نتيجة التحليل</h3><div>${esc(body.response).replace(/\n/g,"<br>")}</div>`); }
-    catch (e) { show("analysisResult", `<p class="error">${esc(e.message)}</p>`); }
-  }
-  async function search() {
-    const query = $("searchQuery").value.trim(); if (!query) return show("searchResult", "أدخل عبارة البحث أولًا."); loading("searchResult");
-    try { const body = await api("/api/law-search", {method:"POST", body:JSON.stringify({query,max_results:10})}); const results = body.results || []; show("searchResult", results.length ? results.map(r => `<article class="result-item"><strong>${esc(r.title || "مادة قانونية")}</strong><br><span>${esc(r.article ? "المادة " + r.article : "")}</span><p>${esc(r.text || "").slice(0,1800)}</p></article>`).join("") : "لم يتم العثور على نتائج."); }
-    catch (e) { show("searchResult", `<p class="error">${esc(e.message)}</p>`); }
-  }
-  async function calculate() {
-    loading("calcResult");
-    const payload = {basic_salary:+$("basicSalary").value,total_salary:+$("totalSalary").value,years_of_service:+$("yearsService").value,delay_months:+$("delayMonths").value,is_arbitrary:$("isArbitrary").checked,resignation:$("resignation").checked,is_saudi:true};
-    try { const body = await api("/api/calculate/eosb", {method:"POST", body:JSON.stringify(payload)}); const r=body.result; show("calcResult", `<h3>النتيجة التقديرية: ${esc((r.totals.grand_total||0).toLocaleString("ar-SA"))} ريال</h3><p>تُعرض كتقدير مبني على المدخلات، وليست استحقاقًا نهائيًا.</p>${Object.values(r.details||{}).map(d=>`<div class="result-item"><strong>${esc(d.description)}</strong><br>${esc((d.amount||0).toLocaleString("ar-SA"))} ريال<br><small>${esc(d.formula)}</small></div>`).join("")}`); }
-    catch (e) { show("calcResult", `<p class="error">${esc(e.message)}</p>`); }
-  }
-  async function upload() {
-    const files = $("fileInput").files; if (!files.length) return show("fileResult", "اختر ملفًا واحدًا على الأقل."); const form = new FormData(); [...files].slice(0,5).forEach(f=>form.append("files",f)); loading("fileResult");
-    try { const body = await api("/api/upload", {method:"POST", headers:{"X-App-Token":token}, body:form}); show("fileResult", `<p>تمت معالجة ${body.summary.success} من ${body.summary.total} ملفات.</p>${(body.results||[]).map(r=>`<article class="result-item"><strong>${esc(r.filename)}</strong><br>${r.success?`<textarea rows="8" readonly>${esc(r.text)}</textarea>`:`<span class="error">${esc(r.error)}</span>`}</article>`).join("")}`); }
-    catch (e) { show("fileResult", `<p class="error">${esc(e.message)}</p>`); }
-  }
-
-  $("loginButton").addEventListener("click", login); $("tokenInput").addEventListener("keydown", e=>{if(e.key==="Enter")login()}); $("logoutButton").addEventListener("click", logout); $("analyzeButton").addEventListener("click", analyze); $("searchButton").addEventListener("click", search); $("calcButton").addEventListener("click", calculate); $("uploadButton").addEventListener("click", upload); document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>activatePanel(t.dataset.panel)));
-  if (token) api("/api/auth/verify", {method:"POST"}).then(()=>{$("loginView").hidden=true;$("appView").hidden=false}).catch(()=>{token="";localStorage.removeItem(tokenKey)});
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+  const esc = v => String(v ?? "").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"}[c]));
+  const show = (id,html) => { const e=$(id); e.hidden=false; e.innerHTML=html; };
+  const loading = id => show(id,'<div class="loading">جارٍ التحليل…</div>');
+  async function api(url, options={}) { const r=await fetch(url,{...options,headers:{...headers(),...(options.headers||{})}}); let b={}; try{b=await r.json()}catch(_){} if(!r.ok)throw Error(b.detail||b.error||`HTTP ${r.status}`); return b; }
+  function formatList(items, empty="لا توجد نتائج") { return items?.length ? items.map(x=>`<article class="result-item"><strong>${esc(x.party||x.area||x.issue||x.type||"نتيجة")}</strong><p>${esc(x.text||x.finding||"")}</p>${x.action?`<p><strong>الإجراء:</strong> ${esc(x.action)}</p>`:""}${x.documents?`<p><strong>المستندات:</strong> ${x.documents.map(esc).join("، ")}</p>`:""}</article>`).join("") : `<p class="muted">${empty}</p>`; }
+  async function login(){const value=$("tokenInput").value.trim();if(!value)return show("loginError","أدخل رمز الوصول.");token=value;try{await api("/api/auth/verify",{method:"POST"});localStorage.setItem(tokenKey,token);$("loginView").hidden=true;$("appView").hidden=false;loadSources()}catch(e){token="";show("loginError",esc(e.message))}}
+  function logout(){token="";localStorage.removeItem(tokenKey);$("appView").hidden=true;$("loginView").hidden=false;$("tokenInput").value=""}
+  function tabs(){document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===t));document.querySelectorAll(".panel").forEach(p=>p.hidden=p.id!==t.dataset.panel)}))}
+  async function review(){const text=$("analysisText").value.trim();if(!text)return show("reviewResult","أدخل النص أولًا.");loading("reviewResult");try{const b=await api("/api/legal/review",{method:"POST",body:JSON.stringify({text})}),r=b.review;show("reviewResult",`<h3>الالتزامات المستخرجة</h3>${formatList(r.obligations)}<h3>مؤشرات المخاطر</h3>${formatList(r.risks)}<h3>المواد المذكورة</h3><p>${r.mentioned_articles?.length? r.mentioned_articles.map(x=>`<span class="tag">المادة ${esc(x)}</span>`).join(" "):"لم تُذكر مواد بأرقام واضحة."}</p><h3>جودة التتبع</h3><p>${esc(r.quality.grounding)} — يلزم تحقق محامٍ: ${r.quality.requires_lawyer_review?"نعم":"لا"}</p><h3>المصادر</h3>${r.sources.map(s=>`<article class="result-item"><strong>${esc(s.citation||s.source?.title)}</strong><p>${esc(s.source?.version_note||"")}</p><a href="${esc(s.source?.url||"#")}" target="_blank" rel="noopener">فتح المصدر الرسمي</a></article>`).join("")}`)}catch(e){show("reviewResult",`<p class="error">${esc(e.message)}</p>`)} }
+  async function aiReview(){const text=$("analysisText").value.trim();if(!text)return show("reviewResult","أدخل النص أولًا.");loading("reviewResult");try{const b=await api("/api/analyze",{method:"POST",body:JSON.stringify({prompt:`حلل النص التالي بعد مراجعته قانونيًا. التزم بالمصادر الرسمية ولا تخترع مادة أو حكمًا. اذكر: ملخص، التزامات كل طرف، مخاطر، بنود ناقصة، نقاط تفاوض، أسئلة تحقق، ومراجع تحتاج مراجعة.\n\n${text}`,system:"أنت مساعد قانوني مهني حذر. فرّق بين النص المنقول والاستنتاج، واذكر أن المخرجات ليست رأيًا قانونيًا نهائيًا."})});show("reviewResult",`<h3>تحليل النموذج</h3><div>${esc(b.response).replace(/\n/g,"<br>")}</div>`)}catch(e){show("reviewResult",`<p class="error">${esc(e.message)}</p>`)} }
+  async function search(){const query=$("searchQuery").value.trim();if(!query)return show("searchResult","أدخل عبارة البحث.");loading("searchResult");try{const b=await api("/api/law-search",{method:"POST",body:JSON.stringify({query,max_results:10})});show("searchResult",(b.results||[]).map(r=>`<article class="result-item"><strong>${esc(r.citation||r.title)}</strong><p>${esc(r.text)}</p><small>${esc(r.source?.version_note||"")}</small><br><a href="${esc(r.source?.url||"#")}" target="_blank" rel="noopener">المصدر الرسمي</a></article>`).join("")||"لا توجد نتائج موثقة.")}catch(e){show("searchResult",`<p class="error">${esc(e.message)}</p>`)} }
+  async function evidence(){const text=$("evidenceText").value.trim();if(!text)return show("evidenceResult","أدخل الوقائع أولًا.");loading("evidenceResult");try{const b=await api("/api/legal/evidence",{method:"POST",body:JSON.stringify({text})});show("evidenceResult",formatList(b.checklist))}catch(e){show("evidenceResult",`<p class="error">${esc(e.message)}</p>`)} }
+  async function upload(){const fs=$("fileInput").files;if(!fs.length)return show("fileResult","اختر ملفًا.");const form=new FormData();[...fs].slice(0,5).forEach(f=>form.append("files",f));loading("fileResult");try{const b=await api("/api/upload",{method:"POST",headers:{"X-App-Token":token},body:form});show("fileResult",`<p>تمت معالجة ${b.summary.success} من ${b.summary.total}.</p>${(b.results||[]).map(r=>`<article class="result-item"><strong>${esc(r.filename)}</strong>${r.success?`<textarea rows="8" readonly>${esc(r.text)}</textarea>`:`<p class="error">${esc(r.error)}</p>`}</article>`).join("")}`)}catch(e){show("fileResult",`<p class="error">${esc(e.message)}</p>`)} }
+  async function loadSources(){try{const b=await api("/api/legal/sources");show("sourcesResult",b.sources.map(s=>`<article class="result-item"><strong>${esc(s.title)}</strong><p>${esc(s.publisher)} — ${esc(s.version_note)}</p><a href="${esc(s.url)}" target="_blank" rel="noopener">فتح المصدر</a></article>`).join(""))}catch(e){show("sourcesResult",`<p class="error">${esc(e.message)}</p>`)} }
+  $("loginButton").addEventListener("click",login);$("tokenInput").addEventListener("keydown",e=>{if(e.key==="Enter")login()});$("logoutButton").addEventListener("click",logout);$("reviewButton").addEventListener("click",review);$("aiReviewButton").addEventListener("click",aiReview);$("searchButton").addEventListener("click",search);$("evidenceButton").addEventListener("click",evidence);$("uploadButton").addEventListener("click",upload);tabs();
+  if(token)api("/api/auth/verify",{method:"POST"}).then(()=>{$("loginView").hidden=true;$ ("appView").hidden=false;loadSources()}).catch(()=>{token="";localStorage.removeItem(tokenKey)});
+  if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch(()=>{});
 })();

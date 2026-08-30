@@ -1,6 +1,7 @@
 """Führer PWA API: المسار التشغيلي الوحيد للتطبيق."""
 from __future__ import annotations
 
+import asyncio
 import hmac
 import io
 import os
@@ -16,7 +17,8 @@ load_dotenv()
 
 import ai_engine
 import file_processing
-from legal_tools_advanced import entitlements_calculator, legal_classifier, legal_search
+from legal_tools_advanced import legal_classifier
+from legal_intelligence import OFFICIAL_SOURCES, evidence_checklist, extract_obligations, legal_review_package, scan_risks, search_with_sources
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(BASE_DIR, "web")
@@ -40,14 +42,8 @@ class SearchRequest(BaseModel):
     max_results: int = Field(default=10, ge=1, le=20)
 
 
-class EOSBRequest(BaseModel):
-    basic_salary: float = Field(ge=0, le=10_000_000)
-    total_salary: float = Field(ge=0, le=10_000_000)
-    years_of_service: float = Field(ge=0, le=100)
-    is_arbitrary: bool = True
-    delay_months: int = Field(default=0, ge=0, le=240)
-    is_saudi: bool = True
-    resignation: bool = False
+class TextRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=50000)
 
 
 async def require_access(x_app_token: Optional[str] = Header(default=None)) -> None:
@@ -104,7 +100,8 @@ async def models(_: None = Depends(require_access)):
 @app.post("/api/analyze")
 async def analyze(request: AnalyzeRequest, _: None = Depends(require_access)):
     preset = selected_preset(request.preset_name)
-    response = ai_engine.call_ai(
+    response = await asyncio.to_thread(
+        ai_engine.call_ai,
         prompt=request.prompt,
         history=[],
         system=request.system,
@@ -116,13 +113,32 @@ async def analyze(request: AnalyzeRequest, _: None = Depends(require_access)):
 
 @app.post("/api/law-search")
 async def law_search(request: SearchRequest, _: None = Depends(require_access)):
-    return {"ok": True, "results": legal_search.search(request.query, request.category, request.max_results)}
+    return {"ok": True, "results": search_with_sources(request.query, request.max_results)}
 
 
-@app.post("/api/calculate/eosb")
-async def calculate_eosb(request: EOSBRequest, _: None = Depends(require_access)):
-    result = entitlements_calculator.calculate_eosb(**request.model_dump())
-    return {"ok": True, "result": result}
+@app.get("/api/legal/sources")
+async def legal_sources(_: None = Depends(require_access)):
+    return {"ok": True, "sources": OFFICIAL_SOURCES}
+
+
+@app.post("/api/legal/review")
+async def legal_review(request: TextRequest, _: None = Depends(require_access)):
+    return {"ok": True, "review": legal_review_package(request.text)}
+
+
+@app.post("/api/legal/obligations")
+async def legal_obligations(request: TextRequest, _: None = Depends(require_access)):
+    return {"ok": True, "obligations": extract_obligations(request.text)}
+
+
+@app.post("/api/legal/risks")
+async def legal_risks(request: TextRequest, _: None = Depends(require_access)):
+    return {"ok": True, "risks": scan_risks(request.text)}
+
+
+@app.post("/api/legal/evidence")
+async def legal_evidence(request: TextRequest, _: None = Depends(require_access)):
+    return {"ok": True, "checklist": evidence_checklist(request.text)}
 
 
 @app.post("/api/classify")
