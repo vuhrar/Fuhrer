@@ -1,82 +1,153 @@
-"""server.py
-واجهة HTTP صغيرة باستخدام FastAPI تتيح استدعاء وظائف المعالجة وتحليل النصوص عبر ai_engine.
-"""
-from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from typing import List, Optional
+"""Führer PWA API: المسار التشغيلي الوحيد للتطبيق."""
+from __future__ import annotations
+
+import hmac
 import io
 import os
+from typing import List, Optional
+
 from dotenv import load_dotenv
+from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 
 load_dotenv()
 
 import ai_engine
 import file_processing
+from legal_tools_advanced import entitlements_calculator, legal_classifier, legal_search
 
-app = FastAPI(title="Führer API")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+WEB_DIR = os.path.join(BASE_DIR, "web")
+APP_TOKEN = os.getenv("APP_ACCESS_TOKEN", "").strip()
+MAX_FILES = int(os.getenv("MAX_FILES", "5"))
+MAX_FILE_BYTES = int(os.getenv("MAX_FILE_BYTES", str(25 * 1024 * 1024)))
 
-# تمكين CORS مبدئيًا للسماح بالوصول من الهاتف/الويب أثناء التطوير
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app = FastAPI(title="Führer Personal Legal PWA", version="3.0.0", docs_url=None, redoc_url=None)
+app.mount("/static", StaticFiles(directory=os.path.join(WEB_DIR, "static")), name="static")
 
 
-class FileLike(io.BytesIO):
-    def __init__(self, data: bytes, name: str):
-        super().__init__(data)
-        self.name = name
+class AnalyzeRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=50000)
+    system: str = Field(default="", max_length=10000)
+    preset_name: Optional[str] = None
+
+
+class SearchRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=500)
+    category: Optional[str] = None
+    max_results: int = Field(default=10, ge=1, le=20)
+
+
+class EOSBRequest(BaseModel):
+    basic_salary: float = Field(ge=0, le=10_000_000)
+    total_salary: float = Field(ge=0, le=10_000_000)
+    years_of_service: float = Field(ge=0, le=100)
+    is_arbitrary: bool = True
+    delay_months: int = Field(default=0, ge=0, le=240)
+    is_saudi: bool = True
+    resignation: bool = False
+
+
+async def require_access(x_app_token: Optional[str] = Header(default=None)) -> None:
+    if not APP_TOKEN:
+        raise HTTPException(status_code=503, detail="APP_ACCESS_TOKEN غير مضبوط على الخادم")
+    if not x_app_token or not hmac.compare_digest(x_app_token, APP_TOKEN):
+        raise HTTPException(status_code=401, detail="رمز الوصول غير صحيح")
+
+
+def selected_preset(name: Optional[str]) -> str:
+    return name or os.getenv("PRESET_NAME", "Führer Law Brain (Qwen 0.6B) 🧠")
+
+
+def selected_key(preset: str) -> str:
+    info = ai_engine.get_preset_info(preset)
+    fmt = info.get("fmt")
+    if fmt == "anthropic":
+        return os.getenv("ANTHROPIC_API_KEY", "")
+    if fmt == "huggingface":
+        return os.getenv("HF_API_KEY", "")
+    return os.getenv("OPENAI_API_KEY", "")
+
+
+@app.get("/", include_in_schema=False)
+async def home():
+    return FileResponse(os.path.join(WEB_DIR, "templates", "index.html"))
+
+
+@app.get("/manifest.json", include_in_schema=False)
+async def manifest():
+    return FileResponse(os.path.join(WEB_DIR, "static", "manifest.json"), media_type="application/manifest+json")
+
+
+@app.get("/sw.js", include_in_schema=False)
+async def service_worker():
+    return FileResponse(os.path.join(WEB_DIR, "static", "sw.js"), media_type="application/javascript")
 
 
 @app.get("/health")
 async def health():
-    return {"ok": True, "message": "Führer API is running"}
+    return {"ok": True, "app": "Führer PWA", "version": app.version, "single_user": True}
 
 
-@app.get("/models")
-async def models():
+@app.post("/api/auth/verify")
+async def verify_access(_: None = Depends(require_access)):
+    return {"ok": True, "single_user": True}
+
+
+@app.get("/api/models")
+async def models(_: None = Depends(require_access)):
     return ai_engine.get_all_models_grouped()
 
 
-@app.post("/analyze")
-async def analyze(
-    prompt: str = Form(...),
-    preset_name: Optional[str] = Form(None),
-    api_key: Optional[str] = Form(None),
-    system: Optional[str] = Form("")
-):
-    preset = preset_name or os.environ.get("PRESET_NAME", "Führer Law Brain (Qwen 0.6B) 🧠")
-    api_key_final = api_key or os.environ.get("OPENAI_API_KEY", "")
-    # ai_engine.call_ai متزامنة لذلك نستدعيها مباشرة
-    try:
-        resp = ai_engine.call_ai(prompt=prompt, history=[], system=system, preset_name=preset, api_key=api_key_final)
-        return {"ok": True, "response": resp}
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+@app.post("/api/analyze")
+async def analyze(request: AnalyzeRequest, _: None = Depends(require_access)):
+    preset = selected_preset(request.preset_name)
+    response = ai_engine.call_ai(
+        prompt=request.prompt,
+        history=[],
+        system=request.system,
+        preset_name=preset,
+        api_key=selected_key(preset),
+    )
+    return {"ok": True, "response": response, "preset": preset}
 
 
-@app.post("/upload")
-async def upload(files: List[UploadFile] = File(...), analyze: Optional[bool] = Form(False), preset_name: Optional[str] = Form(None), api_key: Optional[str] = Form(None)):
-    """رفع ملفات متعددة ومعالجتها، ثم استدعاء النموذج إن طُلب"""
-    file_objs = []
+@app.post("/api/law-search")
+async def law_search(request: SearchRequest, _: None = Depends(require_access)):
+    return {"ok": True, "results": legal_search.search(request.query, request.category, request.max_results)}
+
+
+@app.post("/api/calculate/eosb")
+async def calculate_eosb(request: EOSBRequest, _: None = Depends(require_access)):
+    result = entitlements_calculator.calculate_eosb(**request.model_dump())
+    return {"ok": True, "result": result}
+
+
+@app.post("/api/classify")
+async def classify(text: str, _: None = Depends(require_access)):
+    return {"ok": True, "result": legal_classifier.classify(text)}
+
+
+@app.post("/api/upload")
+async def upload(files: List[UploadFile] = File(...), _: None = Depends(require_access)):
+    if len(files) > MAX_FILES:
+        raise HTTPException(status_code=413, detail=f"الحد الأقصى {MAX_FILES} ملفات")
+    file_objects = []
     for upload in files:
         data = await upload.read()
-        file_objs.append(FileLike(data, upload.filename))
-
-    batch = file_processing.process_multiple_files(file_objs)
-
-    result = {"ok": True, "summary": {"total": batch["total"], "success": batch["success"], "failed": batch["failed"]}, "results": batch["results"]}
-
-    if analyze and batch["success"] > 0:
-        docs_text = batch["texts"]
-        prompt = "\n\n---\n".join(docs_text)
-        preset = preset_name or os.environ.get("PRESET_NAME", "Führer Law Brain (Qwen 0.6B) 🧠")
-        api_key_final = api_key or os.environ.get("OPENAI_API_KEY", "")
-        resp = ai_engine.call_ai(prompt=prompt, history=[], system="", preset_name=preset, api_key=api_key_final)
-        result["ai_response"] = resp
-
-    return result
+        if len(data) > MAX_FILE_BYTES:
+            raise HTTPException(status_code=413, detail=f"الملف {upload.filename} يتجاوز الحد المسموح")
+        if not upload.filename:
+            raise HTTPException(status_code=400, detail="اسم ملف غير صالح")
+        file_obj = io.BytesIO(data)
+        file_obj.name = upload.filename
+        file_objects.append(file_obj)
+    batch = file_processing.process_multiple_files(file_objects)
+    return {
+        "ok": True,
+        "summary": {"total": batch["total"], "success": batch["success"], "failed": batch["failed"]},
+        "results": batch["results"],
+        "texts": batch["texts"],
+    }
