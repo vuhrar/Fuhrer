@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import hmac
 import io
 import os
 from typing import List, Optional
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -17,6 +18,8 @@ load_dotenv()
 
 import ai_engine
 import file_processing
+import workspace_store
+import reporting
 from legal_tools_advanced import legal_classifier
 from legal_intelligence import OFFICIAL_SOURCES, evidence_checklist, extract_obligations, legal_review_package, scan_risks, search_with_sources
 
@@ -44,6 +47,37 @@ class SearchRequest(BaseModel):
 
 class TextRequest(BaseModel):
     text: str = Field(min_length=1, max_length=50000)
+
+
+class MatterCreateRequest(BaseModel):
+    title: str = Field(min_length=2, max_length=200)
+    matter_type: str = Field(default="عام", max_length=80)
+    status: str = Field(default="مفتوحة", max_length=40)
+    priority: str = Field(default="متوسطة", max_length=30)
+    client_name: str = Field(default="", max_length=200)
+    opposing_party: str = Field(default="", max_length=200)
+    jurisdiction: str = Field(default="", max_length=200)
+    description: str = Field(default="", max_length=5000)
+
+
+class MatterUpdateRequest(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=2, max_length=200)
+    matter_type: Optional[str] = Field(default=None, max_length=80)
+    status: Optional[str] = Field(default=None, max_length=40)
+    priority: Optional[str] = Field(default=None, max_length=30)
+    client_name: Optional[str] = Field(default=None, max_length=200)
+    opposing_party: Optional[str] = Field(default=None, max_length=200)
+    jurisdiction: Optional[str] = Field(default=None, max_length=200)
+    description: Optional[str] = Field(default=None, max_length=5000)
+
+
+class TaskRequest(BaseModel):
+    title: str = Field(min_length=2, max_length=200)
+    status: str = Field(default="مفتوحة", max_length=40)
+    priority: str = Field(default="متوسطة", max_length=30)
+    due_date: Optional[str] = Field(default=None, max_length=30)
+    owner: str = Field(default="المستخدم الوحيد", max_length=120)
+    notes: str = Field(default="", max_length=2000)
 
 
 async def require_access(x_app_token: Optional[str] = Header(default=None)) -> None:
@@ -85,6 +119,62 @@ async def service_worker():
 @app.get("/health")
 async def health():
     return {"ok": True, "app": "Führer PWA", "version": app.version, "single_user": True}
+
+
+@app.get("/api/dashboard")
+async def dashboard(_: None = Depends(require_access)):
+    return {"ok": True, "dashboard": workspace_store.dashboard()}
+
+
+@app.get("/api/matters")
+async def matters(status: Optional[str] = None, _: None = Depends(require_access)):
+    return {"ok": True, "matters": workspace_store.list_matters(status=status)}
+
+
+@app.post("/api/matters")
+async def create_matter(request: MatterCreateRequest, _: None = Depends(require_access)):
+    return {"ok": True, "matter": workspace_store.create_matter(request.model_dump())}
+
+
+@app.get("/api/matters/{matter_id}")
+async def get_matter(matter_id: str, _: None = Depends(require_access)):
+    try:
+        return {"ok": True, "matter": workspace_store.get_matter(matter_id)}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+
+
+@app.get("/api/matters/{matter_id}/report")
+async def matter_report(matter_id: str, _: None = Depends(require_access)):
+    try:
+        matter = workspace_store.get_matter(matter_id)
+        return {"ok": True, "matter_id": matter_id, "format": "markdown", "report": reporting.build_matter_report(matter)}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+
+
+@app.patch("/api/matters/{matter_id}")
+async def update_matter(matter_id: str, request: MatterUpdateRequest, _: None = Depends(require_access)):
+    try:
+        return {"ok": True, "matter": workspace_store.update_matter(matter_id, request.model_dump(exclude_none=True))}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+
+
+@app.post("/api/matters/{matter_id}/tasks")
+async def create_task(matter_id: str, request: TaskRequest, _: None = Depends(require_access)):
+    try:
+        return {"ok": True, "matter": workspace_store.create_task(matter_id, request.model_dump())}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+
+
+@app.patch("/api/tasks/{task_id}")
+async def update_task(task_id: str, request: TaskRequest, _: None = Depends(require_access)):
+    try:
+        return {"ok": True, "matter": workspace_store.update_task(task_id, request.model_dump())}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="المهمة غير موجودة")
 
 
 @app.post("/api/auth/verify")
@@ -147,7 +237,7 @@ async def classify(text: str, _: None = Depends(require_access)):
 
 
 @app.post("/api/upload")
-async def upload(files: List[UploadFile] = File(...), _: None = Depends(require_access)):
+async def upload(files: List[UploadFile] = File(...), matter_id: Optional[str] = Form(default=None), _: None = Depends(require_access)):
     if len(files) > MAX_FILES:
         raise HTTPException(status_code=413, detail=f"الحد الأقصى {MAX_FILES} ملفات")
     file_objects = []
@@ -161,9 +251,19 @@ async def upload(files: List[UploadFile] = File(...), _: None = Depends(require_
         file_obj.name = upload.filename
         file_objects.append(file_obj)
     batch = file_processing.process_multiple_files(file_objects)
+    saved_documents = []
+    if matter_id:
+        try:
+            for item in batch.get("results", []):
+                if item.get("success"):
+                    text = item.get("text", "")
+                    saved_documents.append(workspace_store.add_document(matter_id, item.get("filename", "مستند"), "مرفوع", text, hashlib.sha256(text.encode("utf-8")).hexdigest()))
+        except KeyError:
+            raise HTTPException(status_code=404, detail="القضية غير موجودة")
     return {
         "ok": True,
         "summary": {"total": batch["total"], "success": batch["success"], "failed": batch["failed"]},
         "results": batch["results"],
         "texts": batch["texts"],
+        "saved_documents": saved_documents,
     }
