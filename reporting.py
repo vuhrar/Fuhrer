@@ -31,6 +31,38 @@ def build_matter_report(matter: Dict[str, Any]) -> str:
             lines.append(f"- [{task.get('status', 'مفتوحة')}] {task.get('title', '')} — الموعد: {task.get('due_date') or 'غير محدد'} — الأولوية: {task.get('priority', 'متوسطة')}")
     else:
         lines.append("- لا توجد مهام مسجلة.")
+    lines.extend(["", "## الأطراف", ""])
+    parties = matter.get("parties", [])
+    if parties:
+        for party in parties:
+            lines.append(f"- {party.get('name', '')} — الصفة: {party.get('role', '')} — التواصل: {party.get('contact') or 'غير مسجل'}")
+    else:
+        lines.append("- لا توجد أطراف مسجلة.")
+    lines.extend(["", "## الخط الزمني والوقائع", ""])
+    facts = matter.get("facts", [])
+    if facts:
+        for fact in facts:
+            lines.append(f"- {fact.get('event_date') or 'تاريخ غير محدد'} — {fact.get('title', '')} — درجة التحقق: {fact.get('certainty', 'غير متحقق')}")
+            if fact.get("description"):
+                lines.append(f"  - الوصف: {fact['description']}")
+    else:
+        lines.append("- لا توجد وقائع مسجلة.")
+    lines.extend(["", "## الطلبات والمواقف القانونية", ""])
+    claims = matter.get("claims", [])
+    if claims:
+        for claim in claims:
+            lines.append(f"- {claim.get('title', '')} — الحالة: {claim.get('status', 'قيد التحقق')} — الموقف: {claim.get('position', 'مقترح')}")
+            if claim.get("legal_basis"):
+                lines.append(f"  - الأساس المدخل: {claim['legal_basis']}")
+    else:
+        lines.append("- لا توجد طلبات مسجلة.")
+    lines.extend(["", "## المواعيد والإجراءات", ""])
+    deadlines = matter.get("deadlines", [])
+    if deadlines:
+        for deadline in deadlines:
+            lines.append(f"- {deadline.get('due_date') or 'تاريخ غير محدد'} — {deadline.get('title', '')} — الحالة: {deadline.get('status', 'مفتوح')} — المصدر: {deadline.get('source') or 'غير مسجل'}")
+    else:
+        lines.append("- لا توجد مواعيد مسجلة.")
     lines.extend(["", "## المستندات المرتبطة", ""])
     documents = matter.get("documents", [])
     if documents:
