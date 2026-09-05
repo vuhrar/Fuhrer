@@ -80,6 +80,37 @@ class TaskRequest(BaseModel):
     notes: str = Field(default="", max_length=2000)
 
 
+class PartyRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=200)
+    role: str = Field(min_length=2, max_length=100)
+    contact: str = Field(default="", max_length=500)
+    notes: str = Field(default="", max_length=2000)
+
+
+class FactRequest(BaseModel):
+    title: str = Field(min_length=2, max_length=200)
+    event_date: Optional[str] = Field(default=None, max_length=30)
+    description: str = Field(default="", max_length=5000)
+    certainty: str = Field(default="غير متحقق", max_length=50)
+    source_document_id: Optional[str] = Field(default=None, max_length=100)
+
+
+class ClaimRequest(BaseModel):
+    title: str = Field(min_length=2, max_length=300)
+    position: str = Field(default="مقترح", max_length=80)
+    legal_basis: str = Field(default="", max_length=2000)
+    status: str = Field(default="قيد التحقق", max_length=80)
+    notes: str = Field(default="", max_length=3000)
+
+
+class DeadlineRequest(BaseModel):
+    title: str = Field(min_length=2, max_length=200)
+    due_date: Optional[str] = Field(default=None, max_length=30)
+    status: str = Field(default="مفتوح", max_length=50)
+    source: str = Field(default="", max_length=500)
+    notes: str = Field(default="", max_length=2000)
+
+
 async def require_access(x_app_token: Optional[str] = Header(default=None)) -> None:
     if not APP_TOKEN:
         raise HTTPException(status_code=503, detail="APP_ACCESS_TOKEN غير مضبوط على الخادم")
@@ -157,6 +188,38 @@ async def matter_report(matter_id: str, _: None = Depends(require_access)):
 async def update_matter(matter_id: str, request: MatterUpdateRequest, _: None = Depends(require_access)):
     try:
         return {"ok": True, "matter": workspace_store.update_matter(matter_id, request.model_dump(exclude_none=True))}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+
+
+@app.post("/api/matters/{matter_id}/parties")
+async def add_party(matter_id: str, request: PartyRequest, _: None = Depends(require_access)):
+    try:
+        return {"ok": True, "matter": workspace_store.add_party(matter_id, request.model_dump())}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+
+
+@app.post("/api/matters/{matter_id}/facts")
+async def add_fact(matter_id: str, request: FactRequest, _: None = Depends(require_access)):
+    try:
+        return {"ok": True, "matter": workspace_store.add_fact(matter_id, request.model_dump())}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+
+
+@app.post("/api/matters/{matter_id}/claims")
+async def add_claim(matter_id: str, request: ClaimRequest, _: None = Depends(require_access)):
+    try:
+        return {"ok": True, "matter": workspace_store.add_claim(matter_id, request.model_dump())}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+
+
+@app.post("/api/matters/{matter_id}/deadlines")
+async def add_deadline(matter_id: str, request: DeadlineRequest, _: None = Depends(require_access)):
+    try:
+        return {"ok": True, "matter": workspace_store.add_deadline(matter_id, request.model_dump())}
     except KeyError:
         raise HTTPException(status_code=404, detail="القضية غير موجودة")
 

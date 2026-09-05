@@ -12,9 +12,17 @@ def test_workspace_lifecycle(tmp_path, monkeypatch):
     assert matter["title"] == "مراجعة عقد خدمات"
     matter = workspace_store.create_task(matter["id"], {"title": "التحقق من بند الإنهاء", "due_date": "2026-09-10"})
     assert len(matter["tasks"]) == 1
+    matter = workspace_store.add_party(matter["id"], {"name": "صاحب العمل", "role": "مدعى عليه"})
+    matter = workspace_store.add_fact(matter["id"], {"title": "إيقاف الراتب", "event_date": "2026-01-15", "certainty": "مثبت بمستند"})
+    matter = workspace_store.add_claim(matter["id"], {"title": "المطالبة بالأجور المتأخرة", "legal_basis": "يحتاج تحققًا من النص النافذ"})
+    matter = workspace_store.add_deadline(matter["id"], {"title": "مراجعة موعد الإجراء", "due_date": "2026-09-10", "source": "إشعار"})
     doc = workspace_store.add_document(matter["id"], "contract.txt", "عقد", "نص العقد", "hash")
     assert doc["filename"] == "contract.txt"
     loaded = workspace_store.get_matter(matter["id"])
     assert len(loaded["documents"]) == 1
+    assert len(loaded["parties"]) == 1
+    assert len(loaded["facts"]) == 1
+    assert len(loaded["claims"]) == 1
+    assert len(loaded["deadlines"]) == 1
     assert any(event["action"] == "task_created" for event in loaded["audit"])
     assert workspace_store.dashboard()["counts"]["open_matters"] == 1

@@ -57,6 +57,32 @@ def init_db() -> None:
           id INTEGER PRIMARY KEY AUTOINCREMENT, entity_type TEXT NOT NULL, entity_id TEXT NOT NULL,
           action TEXT NOT NULL, metadata TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS parties (
+          id TEXT PRIMARY KEY, matter_id TEXT NOT NULL, name TEXT NOT NULL, role TEXT NOT NULL,
+          contact TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
+          FOREIGN KEY(matter_id) REFERENCES matters(id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS facts (
+          id TEXT PRIMARY KEY, matter_id TEXT NOT NULL, event_date TEXT, title TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '', certainty TEXT NOT NULL DEFAULT 'غير متحقق',
+          source_document_id TEXT, created_at TEXT NOT NULL,
+          FOREIGN KEY(matter_id) REFERENCES matters(id) ON DELETE CASCADE,
+          FOREIGN KEY(source_document_id) REFERENCES documents(id) ON DELETE SET NULL
+        );
+        CREATE TABLE IF NOT EXISTS claims (
+          id TEXT PRIMARY KEY, matter_id TEXT NOT NULL, title TEXT NOT NULL,
+          position TEXT NOT NULL DEFAULT 'مقترح', legal_basis TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL DEFAULT 'قيد التحقق', notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
+          FOREIGN KEY(matter_id) REFERENCES matters(id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS deadlines (
+          id TEXT PRIMARY KEY, matter_id TEXT NOT NULL, title TEXT NOT NULL, due_date TEXT,
+          status TEXT NOT NULL DEFAULT 'مفتوح', source TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
+          FOREIGN KEY(matter_id) REFERENCES matters(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_facts_matter_date ON facts(matter_id, event_date);
+        CREATE INDEX IF NOT EXISTS idx_claims_matter ON claims(matter_id);
+        CREATE INDEX IF NOT EXISTS idx_deadlines_matter_due ON deadlines(matter_id, due_date);
         CREATE INDEX IF NOT EXISTS idx_tasks_matter ON tasks(matter_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_date);
         CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_events(entity_type, entity_id);
@@ -93,6 +119,10 @@ def get_matter(matter_id: str) -> Dict[str, Any]:
         result = dict(row)
         result["tasks"] = [dict(x) for x in db.execute("SELECT * FROM tasks WHERE matter_id=? ORDER BY due_date IS NULL, due_date", (matter_id,)).fetchall()]
         result["documents"] = [dict(x) for x in db.execute("SELECT id,matter_id,filename,kind,source_hash,created_at FROM documents WHERE matter_id=? ORDER BY created_at DESC", (matter_id,)).fetchall()]
+        result["parties"] = [dict(x) for x in db.execute("SELECT * FROM parties WHERE matter_id=? ORDER BY created_at", (matter_id,)).fetchall()]
+        result["facts"] = [dict(x) for x in db.execute("SELECT * FROM facts WHERE matter_id=? ORDER BY event_date IS NULL, event_date, created_at", (matter_id,)).fetchall()]
+        result["claims"] = [dict(x) for x in db.execute("SELECT * FROM claims WHERE matter_id=? ORDER BY created_at", (matter_id,)).fetchall()]
+        result["deadlines"] = [dict(x) for x in db.execute("SELECT * FROM deadlines WHERE matter_id=? ORDER BY due_date IS NULL, due_date", (matter_id,)).fetchall()]
         result["audit"] = [dict(x) for x in db.execute("SELECT * FROM audit_events WHERE entity_id=? ORDER BY created_at DESC LIMIT 100", (matter_id,)).fetchall()]
         return result
 
@@ -155,3 +185,48 @@ def dashboard() -> Dict[str, Any]:
 
 
 init_db()
+
+
+def _ensure_matter(db: sqlite3.Connection, matter_id: str) -> None:
+    if not db.execute("SELECT 1 FROM matters WHERE id=?", (matter_id,)).fetchone():
+        raise KeyError(matter_id)
+
+
+def add_party(matter_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    party_id, stamp = _id("party"), now()
+    with connect() as db:
+        _ensure_matter(db, matter_id)
+        row = (party_id, matter_id, payload["name"].strip(), payload["role"].strip(), payload.get("contact", ""), payload.get("notes", ""), stamp)
+        db.execute("INSERT INTO parties VALUES(?,?,?,?,?,?,?)", row)
+        audit(db, "matter", matter_id, "party_added", {"party_id": party_id})
+    return get_matter(matter_id)
+
+
+def add_fact(matter_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    fact_id, stamp = _id("fact"), now()
+    with connect() as db:
+        _ensure_matter(db, matter_id)
+        row = (fact_id, matter_id, payload.get("event_date"), payload["title"].strip(), payload.get("description", ""), payload.get("certainty", "غير متحقق"), payload.get("source_document_id"), stamp)
+        db.execute("INSERT INTO facts VALUES(?,?,?,?,?,?,?,?)", row)
+        audit(db, "matter", matter_id, "fact_added", {"fact_id": fact_id, "certainty": row[5]})
+    return get_matter(matter_id)
+
+
+def add_claim(matter_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    claim_id, stamp = _id("claim"), now()
+    with connect() as db:
+        _ensure_matter(db, matter_id)
+        row = (claim_id, matter_id, payload["title"].strip(), payload.get("position", "مقترح"), payload.get("legal_basis", ""), payload.get("status", "قيد التحقق"), payload.get("notes", ""), stamp)
+        db.execute("INSERT INTO claims VALUES(?,?,?,?,?,?,?,?)", row)
+        audit(db, "matter", matter_id, "claim_added", {"claim_id": claim_id})
+    return get_matter(matter_id)
+
+
+def add_deadline(matter_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    deadline_id, stamp = _id("deadline"), now()
+    with connect() as db:
+        _ensure_matter(db, matter_id)
+        row = (deadline_id, matter_id, payload["title"].strip(), payload.get("due_date"), payload.get("status", "مفتوح"), payload.get("source", ""), payload.get("notes", ""), stamp)
+        db.execute("INSERT INTO deadlines VALUES(?,?,?,?,?,?,?,?)", row)
+        audit(db, "matter", matter_id, "deadline_added", {"deadline_id": deadline_id})
+    return get_matter(matter_id)
