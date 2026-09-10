@@ -75,6 +75,14 @@ def init_db() -> None:
           status TEXT NOT NULL DEFAULT 'قيد التحقق', notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
           FOREIGN KEY(matter_id) REFERENCES matters(id) ON DELETE CASCADE
         );
+        CREATE TABLE IF NOT EXISTS claim_evidence (
+          claim_id TEXT NOT NULL, document_id TEXT NOT NULL, matter_id TEXT NOT NULL,
+          note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
+          PRIMARY KEY (claim_id, document_id),
+          FOREIGN KEY(claim_id) REFERENCES claims(id) ON DELETE CASCADE,
+          FOREIGN KEY(document_id) REFERENCES documents(id) ON DELETE CASCADE,
+          FOREIGN KEY(matter_id) REFERENCES matters(id) ON DELETE CASCADE
+        );
         CREATE TABLE IF NOT EXISTS deadlines (
           id TEXT PRIMARY KEY, matter_id TEXT NOT NULL, title TEXT NOT NULL, due_date TEXT,
           status TEXT NOT NULL DEFAULT 'مفتوح', source TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
@@ -122,6 +130,7 @@ def get_matter(matter_id: str) -> Dict[str, Any]:
         result["parties"] = [dict(x) for x in db.execute("SELECT * FROM parties WHERE matter_id=? ORDER BY created_at", (matter_id,)).fetchall()]
         result["facts"] = [dict(x) for x in db.execute("SELECT * FROM facts WHERE matter_id=? ORDER BY event_date IS NULL, event_date, created_at", (matter_id,)).fetchall()]
         result["claims"] = [dict(x) for x in db.execute("SELECT * FROM claims WHERE matter_id=? ORDER BY created_at", (matter_id,)).fetchall()]
+        result["claim_evidence"] = [dict(x) for x in db.execute("SELECT ce.*, c.title AS claim_title, d.filename FROM claim_evidence ce JOIN claims c ON c.id=ce.claim_id JOIN documents d ON d.id=ce.document_id WHERE ce.matter_id=? ORDER BY ce.created_at", (matter_id,)).fetchall()]
         result["deadlines"] = [dict(x) for x in db.execute("SELECT * FROM deadlines WHERE matter_id=? ORDER BY due_date IS NULL, due_date", (matter_id,)).fetchall()]
         result["audit"] = [dict(x) for x in db.execute("SELECT * FROM audit_events WHERE entity_id=? ORDER BY created_at DESC LIMIT 100", (matter_id,)).fetchall()]
         return result
@@ -219,6 +228,19 @@ def add_claim(matter_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         row = (claim_id, matter_id, payload["title"].strip(), payload.get("position", "مقترح"), payload.get("legal_basis", ""), payload.get("status", "قيد التحقق"), payload.get("notes", ""), stamp)
         db.execute("INSERT INTO claims VALUES(?,?,?,?,?,?,?,?)", row)
         audit(db, "matter", matter_id, "claim_added", {"claim_id": claim_id})
+    return get_matter(matter_id)
+
+
+def link_claim_evidence(matter_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    stamp = now()
+    with connect() as db:
+        _ensure_matter(db, matter_id)
+        claim = db.execute("SELECT 1 FROM claims WHERE id=? AND matter_id=?", (payload["claim_id"], matter_id)).fetchone()
+        document = db.execute("SELECT 1 FROM documents WHERE id=? AND matter_id=?", (payload["document_id"], matter_id)).fetchone()
+        if not claim or not document:
+            raise KeyError(matter_id)
+        db.execute("INSERT OR REPLACE INTO claim_evidence(claim_id, document_id, matter_id, note, created_at) VALUES(?,?,?,?,?)", (payload["claim_id"], payload["document_id"], matter_id, payload.get("note", ""), stamp))
+        audit(db, "matter", matter_id, "claim_evidence_linked", {"claim_id": payload["claim_id"], "document_id": payload["document_id"]})
     return get_matter(matter_id)
 
 

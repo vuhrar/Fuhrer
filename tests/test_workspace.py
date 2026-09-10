@@ -24,5 +24,11 @@ def test_workspace_lifecycle(tmp_path, monkeypatch):
     assert len(loaded["facts"]) == 1
     assert len(loaded["claims"]) == 1
     assert len(loaded["deadlines"]) == 1
+    claim_id = loaded["claims"][0]["id"]
+    document_id = loaded["documents"][0]["id"]
+    loaded = workspace_store.link_claim_evidence(matter["id"], {"claim_id": claim_id, "document_id": document_id, "note": "الخطاب يؤيد الطلب"})
+    assert len(loaded["claim_evidence"]) == 1
+    assert loaded["claim_evidence"][0]["claim_id"] == claim_id
+    assert any(event["action"] == "claim_evidence_linked" for event in loaded["audit"])
     assert any(event["action"] == "task_created" for event in loaded["audit"])
     assert workspace_store.dashboard()["counts"]["open_matters"] == 1

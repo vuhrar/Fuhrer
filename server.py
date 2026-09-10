@@ -72,6 +72,12 @@ class MatterUpdateRequest(BaseModel):
     description: Optional[str] = Field(default=None, max_length=5000)
 
 
+class ClaimEvidenceRequest(BaseModel):
+    claim_id: str = Field(min_length=2, max_length=80)
+    document_id: str = Field(min_length=2, max_length=80)
+    note: str = Field(default="", max_length=2000)
+
+
 class TaskRequest(BaseModel):
     title: str = Field(min_length=2, max_length=200)
     status: str = Field(default="مفتوحة", max_length=40)
@@ -243,6 +249,14 @@ async def add_claim(matter_id: str, request: ClaimRequest, _: None = Depends(req
         return {"ok": True, "matter": workspace_store.add_claim(matter_id, request.model_dump())}
     except KeyError:
         raise HTTPException(status_code=404, detail="القضية غير موجودة")
+
+
+@app.post("/api/matters/{matter_id}/claim-evidence")
+async def link_claim_evidence(matter_id: str, request: ClaimEvidenceRequest, _: None = Depends(require_access)):
+    try:
+        return {"ok": True, "matter": workspace_store.link_claim_evidence(matter_id, request.model_dump())}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية أو الطلب أو المستند غير موجود")
 
 
 @app.post("/api/matters/{matter_id}/deadlines")
