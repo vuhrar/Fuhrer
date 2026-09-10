@@ -1,0 +1,82 @@
+{
+  "package_version": "1.0",
+  "generated_at": "2026-09-10T09:42:06.681711+00:00",
+  "disclaimer": "مخرج عمل أولي للمراجعة الشخصية؛ لا يمثل رأيًا قانونيًا نهائيًا ولا يغني عن التحقق المهني.",
+  "matter": {
+    "id": "matter_sample",
+    "title": "نزاع عمالي نموذجي",
+    "matter_type": "نزاع عمالي",
+    "status": "مفتوحة",
+    "priority": "عالية",
+    "client_name": "المستخدم",
+    "opposing_party": "صاحب العمل",
+    "jurisdiction": "يحدد بعد التحقق",
+    "description": "مثال تشغيلي لإظهار شكل المخرج النهائي.",
+    "created_at": "",
+    "updated_at": ""
+  },
+  "parties": [
+    {
+      "name": "المستخدم",
+      "role": "مدعٍ",
+      "contact": ""
+    },
+    {
+      "name": "صاحب العمل",
+      "role": "مدعى عليه",
+      "contact": ""
+    }
+  ],
+  "chronology": [
+    {
+      "title": "إيقاف الراتب",
+      "event_date": "2026-01-15",
+      "certainty": "مثبت بمستند",
+      "description": "خطاب صادر من جهة العمل"
+    }
+  ],
+  "claims_matrix": [
+    {
+      "claim": {
+        "title": "المطالبة بالأجور المتأخرة",
+        "position": "مقترح",
+        "status": "قيد التحقق",
+        "legal_basis": "يحتاج تحققًا من النص النافذ"
+      },
+      "related_facts": [],
+      "verification_status": "قيد التحقق"
+    }
+  ],
+  "evidence_index": [
+    {
+      "id": null,
+      "filename": "خطاب-إيقاف-الراتب.pdf",
+      "kind": "دليل",
+      "hash": "sample-sha256",
+      "created_at": "2026-01-15"
+    }
+  ],
+  "deadlines": [
+    {
+      "title": "مراجعة موعد الرد",
+      "due_date": "2026-09-10",
+      "status": "مفتوح",
+      "source": "إشعار"
+    }
+  ],
+  "tasks": [
+    {
+      "title": "فهرسة الخطاب",
+      "status": "مفتوحة",
+      "due_date": "2026-09-08"
+    }
+  ],
+  "audit": [],
+  "quality_flags": {
+    "facts_without_date": 0,
+    "unverified_facts": 0,
+    "claims_without_basis": 0,
+    "documents_count": 1,
+    "open_deadlines": 1
+  }
+}

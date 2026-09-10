@@ -20,6 +20,7 @@ import ai_engine
 import file_processing
 import workspace_store
 import reporting
+import case_package
 from legal_tools_advanced import legal_classifier
 from legal_intelligence import OFFICIAL_SOURCES, evidence_checklist, extract_obligations, legal_review_package, scan_risks, search_with_sources
 
@@ -171,6 +172,34 @@ async def create_matter(request: MatterCreateRequest, _: None = Depends(require_
 async def get_matter(matter_id: str, _: None = Depends(require_access)):
     try:
         return {"ok": True, "matter": workspace_store.get_matter(matter_id)}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+
+
+@app.get("/api/matters/{matter_id}/package")
+async def matter_package(matter_id: str, _: None = Depends(require_access)):
+    try:
+        package = case_package.build_package(workspace_store.get_matter(matter_id))
+        return {"ok": True, "package": package}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+
+
+@app.get("/api/matters/{matter_id}/package.html")
+async def matter_package_html(matter_id: str, _: None = Depends(require_access)):
+    from fastapi.responses import HTMLResponse
+    try:
+        package = case_package.build_package(workspace_store.get_matter(matter_id))
+        return HTMLResponse(case_package.to_html(package))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+
+
+@app.get("/api/matters/{matter_id}/package.md")
+async def matter_package_markdown(matter_id: str, _: None = Depends(require_access)):
+    try:
+        package = case_package.build_package(workspace_store.get_matter(matter_id))
+        return {"ok": True, "format": "markdown", "content": case_package.to_markdown(package)}
     except KeyError:
         raise HTTPException(status_code=404, detail="القضية غير موجودة")
 
