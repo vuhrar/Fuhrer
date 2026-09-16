@@ -11,6 +11,7 @@ from typing import List, Optional
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -22,8 +23,9 @@ import file_processing
 import workspace_store
 import reporting
 import case_package
+import matter_intelligence as intelligence_engine
 from legal_tools_advanced import legal_classifier
-from legal_intelligence import OFFICIAL_SOURCES, evidence_checklist, extract_obligations, legal_review_package, scan_risks, search_with_sources
+from legal_intelligence import OFFICIAL_SOURCES, evidence_checklist, extract_obligations, legal_review_package, procedure_requirements, scan_risks, search_with_sources
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WEB_DIR = os.path.join(BASE_DIR, "web")
@@ -43,6 +45,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         response.headers["Cache-Control"] = "no-store"
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+        response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
         if request.url.path.startswith("/api/"):
             response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
         return response
@@ -199,6 +204,14 @@ async def get_matter(matter_id: str, _: None = Depends(require_access)):
         raise HTTPException(status_code=404, detail="القضية غير موجودة")
 
 
+@app.get("/api/matters/{matter_id}/intelligence")
+async def matter_intelligence_endpoint(matter_id: str, _: None = Depends(require_access)):
+    try:
+        return {"ok": True, "analysis": intelligence_engine.analyze_matter(workspace_store.get_matter(matter_id))}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+
+
 @app.get("/api/matters/{matter_id}/package")
 async def matter_package(matter_id: str, _: None = Depends(require_access)):
     try:
@@ -300,7 +313,21 @@ async def update_task(task_id: str, request: TaskRequest, _: None = Depends(requ
         raise HTTPException(status_code=404, detail="المهمة غير موجودة")
 
 
-@app.post("/api/auth/verify")
+@app.get("/api/documents/{document_id}/integrity")
+async def document_integrity(document_id: str, matter_id: Optional[str] = None, _: None = Depends(require_access)):
+    try:
+        return {"ok": True, "integrity": workspace_store.verify_document(document_id, matter_id)}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="المستند غير موجود")
+
+
+@app.get("/api/backup")
+async def download_backup(_: None = Depends(require_access)):
+    archive_path = workspace_store.build_backup_archive()
+    return FileResponse(archive_path, media_type="application/zip", filename="fuhrer-backup.zip", background=BackgroundTask(lambda: os.path.exists(archive_path) and os.remove(archive_path)))
+
+
+@app.get("/api/auth/verify")
 async def verify_access(_: None = Depends(require_access)):
     return {"ok": True, "single_user": True}
 
@@ -327,6 +354,11 @@ async def analyze(request: AnalyzeRequest, _: None = Depends(require_access)):
 @app.post("/api/law-search")
 async def law_search(request: SearchRequest, _: None = Depends(require_access)):
     return {"ok": True, "results": search_with_sources(request.query, request.max_results)}
+
+
+@app.get("/api/procedure/{step_key}/requirements")
+async def procedure_requirements_endpoint(step_key: str, _: None = Depends(require_access)):
+    return {"ok": True, "requirements": procedure_requirements(step_key)}
 
 
 @app.get("/api/legal/sources")
@@ -364,6 +396,7 @@ async def upload(files: List[UploadFile] = File(...), matter_id: Optional[str] =
     if len(files) > MAX_FILES:
         raise HTTPException(status_code=413, detail=f"الحد الأقصى {MAX_FILES} ملفات")
     file_objects = []
+    file_metadata = {}
     for upload in files:
         data = await upload.read()
         if len(data) > MAX_FILE_BYTES:
@@ -373,6 +406,7 @@ async def upload(files: List[UploadFile] = File(...), matter_id: Optional[str] =
         file_obj = io.BytesIO(data)
         file_obj.name = upload.filename
         file_objects.append(file_obj)
+        file_metadata[upload.filename] = {"mime_type": upload.content_type or "application/octet-stream", "byte_size": len(data)}
     batch = file_processing.process_multiple_files(file_objects)
     saved_documents = []
     if matter_id:
@@ -380,7 +414,11 @@ async def upload(files: List[UploadFile] = File(...), matter_id: Optional[str] =
             for item in batch.get("results", []):
                 if item.get("success"):
                     text = item.get("text", "")
-                    saved_documents.append(workspace_store.add_document(matter_id, item.get("filename", "مستند"), "مرفوع", text, hashlib.sha256(text.encode("utf-8")).hexdigest()))
+                    filename = item.get("filename", "مستند")
+                    original = next((obj for obj in file_objects if getattr(obj, "name", "") == filename), None)
+                    raw_bytes = original.getvalue() if original is not None else text.encode("utf-8")
+                    metadata = file_metadata.get(filename, {})
+                    saved_documents.append(workspace_store.add_document(matter_id, filename, "مرفوع", text, hashlib.sha256(raw_bytes).hexdigest(), byte_size=metadata.get("byte_size", len(raw_bytes)), mime_type=metadata.get("mime_type", "application/octet-stream"), metadata=item.get("signals", {}), raw_bytes=raw_bytes))
         except KeyError:
             raise HTTPException(status_code=404, detail="القضية غير موجودة")
     return {

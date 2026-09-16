@@ -14,6 +14,8 @@ OFFICIAL_SOURCES = [
         "url": "https://www.hrsd.gov.sa/sites/default/files/2025-11/labor-law.pdf",
         "page": "نسخة PDF الرسمية المرتبطة بصفحة الوزارة",
         "version_note": "تتضمن الصفحة الرسمية تعديلات من بينها المرسوم الملكي م/44 بتاريخ 8/2/1446هـ",
+        "published_or_verified": "2024-10-06 / الصفحة الرسمية محدثة 2026",
+        "status": "يلزم فتح المصدر قبل الاعتماد",
     },
     {
         "id": "hrsd_labor_law_page",
@@ -22,6 +24,8 @@ OFFICIAL_SOURCES = [
         "url": "https://www.hrsd.gov.sa/knowledge-centre/decisions-and-regulations/regulation-and-procedures/%D9%86%D8%B8%D8%A7%D9%85-%D8%A7%D9%84%D8%B9%D9%85%D9%84",
         "page": "صفحة القرارات والأنظمة",
         "version_note": "صفحة المصدر الرسمية والتحديثات والروابط المرتبطة",
+        "published_or_verified": "2024-10-06",
+        "status": "مرجع إصدار وتعديلات",
     },
     {
         "id": "hrsd_executive_regulation",
@@ -30,8 +34,33 @@ OFFICIAL_SOURCES = [
         "url": "https://www.hrsd.gov.sa/knowledge-centre/decisions-and-regulations/regulation-and-procedures/%D8%A7%D9%84%D9%84%D8%A7%D8%A6%D8%AD%D8%A9-%D8%A7%D9%84%D8%AA%D9%86%D9%81%D9%8A%D8%B0%D9%8A%D8%A9-%D9%84%D9%86%D8%B8%D8%A7%D9%85-%D8%A7%D9%84%D8%B9%D9%85%D9%84-%D9%88%D9%85%D9%84%D8%AD%D9%82%D8%A7%D8%AA%D9%87%D8%A7",
         "page": "صفحة اللائحة التنفيذية",
         "version_note": "يجب التحقق من النسخة النافذة قبل الاعتماد",
+        "published_or_verified": "غير مثبت في هذه النسخة",
+        "status": "يلزم تحقق مباشر",
+    },
+    {
+        "id": "hrsd_amicable_settlement_service",
+        "title": "التسوية الودية للخلافات العمالية",
+        "publisher": "وزارة الموارد البشرية والتنمية الاجتماعية",
+        "url": "https://www.hrsd.gov.sa/ministry-services/services/269970",
+        "version_note": "المرحلة الأولى؛ مدة الخدمة 21 يومًا؛ الإحالة بعد محضر التعذر وفق الإجراءات المعتمدة",
+        "published_or_verified": "صفحة رسمية محدثة 2026-08-18",
+        "status": "مرجع إجرائي",
+    },
+    {
+        "id": "moj_statement_of_claim",
+        "title": "صحيفة دعوى",
+        "publisher": "منصة حكومي / وزارة العدل",
+        "url": "https://my.gov.sa/ar/services/19682",
+        "version_note": "تتضمن المحكمة العمالية وإدخال التصنيف والأطراف والوقائع وإرفاق المستندات عبر ناجز",
+        "published_or_verified": "صفحة حكومية محدثة 2026-09-16",
+        "status": "مرجع إجرائي",
     },
 ]
+
+PROCEDURE_REQUIREMENTS = {
+    "amicable_settlement": {"source_id": "hrsd_amicable_settlement_service", "requirements": ["بيانات المدعي", "مكتب التسوية والاختصاص المكاني", "بيانات المدعى عليه", "بيانات العمل", "موضوع الدعوى", "المستندات", "إقرار عدم كيدية الدعوى"], "time_limit": "21 يوم عمل من تاريخ أول جلسة"},
+    "lawsuit": {"source_id": "moj_statement_of_claim", "requirements": ["تسجيل الدخول إلى ناجز", "تصنيف الدعوى", "بيانات الأطراف", "بيانات الدعوى والوقائع", "المستندات المطلوبة"]},
+}
 
 OBLIGATION_PATTERNS = [
     ("التزام صريح", re.compile(r"(?:يلتزم|يجب على|يتعين على|يتوجب على|على الطرف|لا يجوز|يحظر)\s+[^.؛\n]{5,220}")),
@@ -68,6 +97,14 @@ def source_record(article: Dict[str, Any]) -> Dict[str, Any]:
     result["citation"] = f"نظام العمل، المادة {article.get('article', 'غير محددة')} — وزارة الموارد البشرية"
     result["verification_required"] = True
     return result
+
+
+def procedure_requirements(step_key: str) -> Dict[str, Any]:
+    item = PROCEDURE_REQUIREMENTS.get(step_key)
+    if not item:
+        return {"step_key": step_key, "requirements": [], "verification_required": True}
+    source = next((x for x in OFFICIAL_SOURCES if x["id"] == item["source_id"]), None)
+    return {"step_key": step_key, **item, "source": source, "verification_required": True}
 
 
 def search_with_sources(query: str, max_results: int = 10) -> List[Dict[str, Any]]:

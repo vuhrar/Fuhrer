@@ -1,9 +1,12 @@
 """مخزن عمل قانوني محلي وآمن نسبيًا لمستخدم واحد باستخدام SQLite."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sqlite3
+import tempfile
+import zipfile
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -11,6 +14,8 @@ from typing import Any, Dict, List, Optional
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.getenv("FUHRER_DATA_DIR", os.path.join(os.path.expanduser("~"), "fuhrer_data"))
 os.makedirs(DATA_DIR, exist_ok=True)
+BLOB_DIR = os.path.join(DATA_DIR, "document_blobs")
+os.makedirs(BLOB_DIR, exist_ok=True)
 DB_PATH = os.path.join(DATA_DIR, "workspace.sqlite3")
 
 
@@ -50,7 +55,17 @@ def init_db() -> None:
         CREATE TABLE IF NOT EXISTS documents (
           id TEXT PRIMARY KEY, matter_id TEXT, filename TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'مستند',
           extracted_text TEXT NOT NULL DEFAULT '', source_hash TEXT NOT NULL DEFAULT '',
+          byte_size INTEGER NOT NULL DEFAULT 0, mime_type TEXT NOT NULL DEFAULT '',
+          storage_path TEXT NOT NULL DEFAULT '', retention_class TEXT NOT NULL DEFAULT 'حساس',
+          integrity_status TEXT NOT NULL DEFAULT 'سليم', metadata_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL,
+          FOREIGN KEY(matter_id) REFERENCES matters(id) ON DELETE SET NULL
+        );
+        CREATE TABLE IF NOT EXISTS custody_events (
+          id TEXT PRIMARY KEY, document_id TEXT NOT NULL, matter_id TEXT,
+          event_type TEXT NOT NULL, actor TEXT NOT NULL DEFAULT 'المستخدم الوحيد',
+          details TEXT NOT NULL DEFAULT '{}', event_hash TEXT NOT NULL,
           created_at TEXT NOT NULL,
+          FOREIGN KEY(document_id) REFERENCES documents(id) ON DELETE CASCADE,
           FOREIGN KEY(matter_id) REFERENCES matters(id) ON DELETE SET NULL
         );
         CREATE TABLE IF NOT EXISTS audit_events (
@@ -94,6 +109,7 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_tasks_matter ON tasks(matter_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_date);
         CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_events(entity_type, entity_id);
+        CREATE INDEX IF NOT EXISTS idx_custody_document ON custody_events(document_id, created_at);
         """)
 
 
@@ -126,7 +142,8 @@ def get_matter(matter_id: str) -> Dict[str, Any]:
             raise KeyError(matter_id)
         result = dict(row)
         result["tasks"] = [dict(x) for x in db.execute("SELECT * FROM tasks WHERE matter_id=? ORDER BY due_date IS NULL, due_date", (matter_id,)).fetchall()]
-        result["documents"] = [dict(x) for x in db.execute("SELECT id,matter_id,filename,kind,source_hash,created_at FROM documents WHERE matter_id=? ORDER BY created_at DESC", (matter_id,)).fetchall()]
+        result["documents"] = [dict(x) for x in db.execute("SELECT id,matter_id,filename,kind,source_hash,byte_size,mime_type,storage_path,retention_class,integrity_status,metadata_json,created_at FROM documents WHERE matter_id=? ORDER BY created_at DESC", (matter_id,)).fetchall()]
+        result["custody_events"] = [dict(x) for x in db.execute("SELECT * FROM custody_events WHERE matter_id=? ORDER BY created_at", (matter_id,)).fetchall()]
         result["parties"] = [dict(x) for x in db.execute("SELECT * FROM parties WHERE matter_id=? ORDER BY created_at", (matter_id,)).fetchall()]
         result["facts"] = [dict(x) for x in db.execute("SELECT * FROM facts WHERE matter_id=? ORDER BY event_date IS NULL, event_date, created_at", (matter_id,)).fetchall()]
         result["claims"] = [dict(x) for x in db.execute("SELECT * FROM claims WHERE matter_id=? ORDER BY created_at", (matter_id,)).fetchall()]
@@ -175,15 +192,62 @@ def update_task(task_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     return get_matter(row["matter_id"])
 
 
-def add_document(matter_id: Optional[str], filename: str, kind: str, extracted_text: str, source_hash: str) -> Dict[str, Any]:
+def add_document(matter_id: Optional[str], filename: str, kind: str, extracted_text: str, source_hash: str, byte_size: int = 0, mime_type: str = "", storage_path: str = "", metadata: Optional[Dict[str, Any]] = None, raw_bytes: Optional[bytes] = None) -> Dict[str, Any]:
     document_id, stamp = _id("doc"), now()
+    if raw_bytes is not None:
+        actual_hash = hashlib.sha256(raw_bytes).hexdigest()
+        if source_hash and source_hash != actual_hash:
+            raise ValueError("بصمة الملف الأصلي لا تطابق البيانات المرفوعة")
+        source_hash = actual_hash
+        byte_size = len(raw_bytes)
+    payload = {"filename": filename, "source_hash": source_hash, "byte_size": byte_size, "mime_type": mime_type, "kind": kind}
+    event_hash = hashlib.sha256(json.dumps({"document_id": document_id, "event_type": "ingested", "payload": payload, "created_at": stamp}, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+    if raw_bytes is not None:
+        os.makedirs(BLOB_DIR, exist_ok=True)
+        storage_path = os.path.join(BLOB_DIR, f"{document_id}.bin")
+        with open(storage_path, "wb") as blob:
+            blob.write(raw_bytes)
     with connect() as db:
         if matter_id and not db.execute("SELECT 1 FROM matters WHERE id=?", (matter_id,)).fetchone():
             raise KeyError(matter_id)
-        db.execute("INSERT INTO documents VALUES(?,?,?,?,?,?,?)", (document_id, matter_id, filename, kind, extracted_text, source_hash, stamp))
+        db.execute("INSERT INTO documents(id,matter_id,filename,kind,extracted_text,source_hash,byte_size,mime_type,storage_path,retention_class,integrity_status,metadata_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", (document_id, matter_id, filename, kind, extracted_text, source_hash, byte_size, mime_type, storage_path, "حساس", "سليم", json.dumps(metadata or {}, ensure_ascii=False), stamp))
+        db.execute("INSERT INTO custody_events(id,document_id,matter_id,event_type,actor,details,event_hash,created_at) VALUES(?,?,?,?,?,?,?,?)", (_id("custody"), document_id, matter_id, "ingested", "المستخدم الوحيد", json.dumps(payload, ensure_ascii=False), event_hash, stamp))
         if matter_id:
-            audit(db, "matter", matter_id, "document_added", {"document_id": document_id, "filename": filename})
-    return {"id": document_id, "matter_id": matter_id, "filename": filename, "kind": kind, "source_hash": source_hash, "created_at": stamp}
+            audit(db, "matter", matter_id, "document_added", {"document_id": document_id, "filename": filename, "source_hash": source_hash, "event_hash": event_hash, "metadata": metadata or {}})
+    return {"id": document_id, "matter_id": matter_id, "filename": filename, "kind": kind, "source_hash": source_hash, "byte_size": byte_size, "mime_type": mime_type, "storage_path": storage_path, "integrity_status": "سليم", "metadata": metadata or {}, "created_at": stamp, "custody_event_hash": event_hash}
+
+
+def verify_document(document_id: str, matter_id: Optional[str] = None) -> Dict[str, Any]:
+    with connect() as db:
+        query = "SELECT * FROM documents WHERE id=?" + (" AND matter_id=?" if matter_id else "")
+        params = (document_id, matter_id) if matter_id else (document_id,)
+        row = db.execute(query, params).fetchone()
+        if not row:
+            raise KeyError(document_id)
+        doc = dict(row)
+    path = doc.get("storage_path", "")
+    if not path or not os.path.isfile(path):
+        return {"document_id": document_id, "status": "غير قابل للتحقق", "reason": "الأصل الثنائي غير محفوظ", "expected_hash": doc["source_hash"], "verified": False}
+    with open(path, "rb") as blob:
+        actual = hashlib.sha256(blob.read()).hexdigest()
+    verified = actual == doc["source_hash"]
+    return {"document_id": document_id, "status": "سليم" if verified else "متغير", "expected_hash": doc["source_hash"], "actual_hash": actual, "verified": verified}
+
+
+def build_backup_archive() -> str:
+    """يبني أرشيفًا محليًا مؤقتًا؛ يجب نقله وتخزينه مشفرًا خارج الخادم."""
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    archive_path = os.path.join(tempfile.gettempdir(), f"fuhrer-backup-{stamp}.zip")
+    with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.write(DB_PATH, "workspace.sqlite3")
+        if os.path.isdir(BLOB_DIR):
+            for root, _, filenames in os.walk(BLOB_DIR):
+                for filename in filenames:
+                    path = os.path.join(root, filename)
+                    archive.write(path, os.path.join("document_blobs", filename))
+        manifest = {"created_at": now(), "database": "workspace.sqlite3", "blob_directory": "document_blobs", "warning": "الأرشيف ليس مشفرًا تلقائيًا؛ خزنه داخل حاوية مشفرة ولا تشاركه."}
+        archive.writestr("BACKUP_MANIFEST.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+    return archive_path
 
 
 def dashboard() -> Dict[str, Any]:

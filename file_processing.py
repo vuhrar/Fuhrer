@@ -8,9 +8,33 @@ import io
 import os
 import json
 import logging
-from typing import Optional
+import re
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
+
+DATE_PATTERN = re.compile(r"(?:\d{1,4}[/-]\d{1,2}[/-]\d{1,4}|\d{1,2}\s+(?:يناير|فبراير|مارس|أبريل|مايو|يونيو|يوليو|أغسطس|سبتمبر|أكتوبر|نوفمبر|ديسمبر)\s+\d{4})")
+AMOUNT_PATTERN = re.compile(r"(?:\d[\d,\.]*\s*(?:ريال|ر\.س|ر\.س\.?|SAR)|(?:راتب|أجر|مبلغ|خصم)[^؛.\n]{0,80})", re.IGNORECASE)
+EMAIL_PATTERN = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.IGNORECASE)
+PHONE_PATTERN = re.compile(r"(?:\+?966|05)\s*[- ]?\d{8,9}")
+ARTICLE_PATTERN = re.compile(r"(?:المادة|مادة)\s*\(?\s*\d{1,3}\s*\)?")
+
+
+def extract_structured_signals(text: str) -> Dict[str, Any]:
+    """استخراج إشارات قابلة للمراجعة؛ لا تُعامل كحقائق مثبتة أو تفسير قانوني."""
+    clean = text or ""
+    def unique(pattern: re.Pattern[str]) -> list[str]:
+        return list(dict.fromkeys(m.group(0).strip() for m in pattern.finditer(clean)))
+    return {
+        "dates": unique(DATE_PATTERN),
+        "amounts_or_pay_terms": unique(AMOUNT_PATTERN),
+        "emails": unique(EMAIL_PATTERN),
+        "phones": unique(PHONE_PATTERN),
+        "legal_article_mentions": unique(ARTICLE_PATTERN),
+        "characters": len(clean),
+        "words_approx": len(clean.split()),
+        "needs_human_verification": True,
+    }
 
 
 # (ابقينا الدوال الأساسية لاستخراج النص كما كانت)
@@ -22,7 +46,7 @@ def extract_text_from_file(uploaded_file) -> dict:
     """
     filename = getattr(uploaded_file, 'name', 'unknown')
     ext = os.path.splitext(filename)[1].lower()
-    result = {"success": False, "text": "", "filename": filename, "pages": 0, "error": ""}
+    result = {"success": False, "text": "", "filename": filename, "pages": 0, "error": "", "signals": {}}
 
     try:
         if ext == ".txt":
@@ -30,7 +54,8 @@ def extract_text_from_file(uploaded_file) -> dict:
             for enc in ("utf-8", "windows-1256", "utf-16", "latin-1"):
                 try:
                     text = content.decode(enc)
-                    result.update({"success": True, "text": text.strip(), "pages": 1})
+                    text = text.strip()
+                    result.update({"success": True, "text": text, "pages": 1, "signals": extract_structured_signals(text)})
                     return result
                 except Exception:
                     continue
@@ -45,7 +70,7 @@ def extract_text_from_file(uploaded_file) -> dict:
                 pages_text = [p.get_text() for p in doc]
                 text = "\n\n".join(pages_text).strip()
                 if text:
-                    result.update({"success": True, "text": text, "pages": len(doc)})
+                    result.update({"success": True, "text": text, "pages": len(doc), "signals": extract_structured_signals(text)})
                     return result
             except Exception:
                 pass
@@ -55,7 +80,7 @@ def extract_text_from_file(uploaded_file) -> dict:
                 pages_text = [p.extract_text() or "" for p in reader.pages]
                 text = "\n\n".join(pages_text).strip()
                 if text:
-                    result.update({"success": True, "text": text, "pages": len(reader.pages)})
+                    result.update({"success": True, "text": text, "pages": len(reader.pages), "signals": extract_structured_signals(text)})
                     return result
             except Exception:
                 pass
@@ -67,7 +92,7 @@ def extract_text_from_file(uploaded_file) -> dict:
                 pages_text = [pytesseract.image_to_string(img, lang='ara+eng') for img in images]
                 text = "\n\n".join(pages_text).strip()
                 if text:
-                    result.update({"success": True, "text": text, "pages": len(images)})
+                    result.update({"success": True, "text": text, "pages": len(images), "signals": extract_structured_signals(text)})
                     return result
             except Exception:
                 pass
@@ -79,7 +104,7 @@ def extract_text_from_file(uploaded_file) -> dict:
                 doc = Document(io.BytesIO(uploaded_file.read()))
                 paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
                 text = "\n".join(paragraphs)
-                result.update({"success": True, "text": text, "pages": 1})
+                result.update({"success": True, "text": text, "pages": 1, "signals": extract_structured_signals(text)})
                 return result
             except Exception as e:
                 result['error'] = f"خطأ في قراءة DOCX: {e}"
@@ -88,7 +113,7 @@ def extract_text_from_file(uploaded_file) -> dict:
             try:
                 data = json.loads(uploaded_file.read().decode('utf-8'))
                 text = json.dumps(data, ensure_ascii=False, indent=2)
-                result.update({"success": True, "text": text, "pages": 1})
+                result.update({"success": True, "text": text, "pages": 1, "signals": extract_structured_signals(text)})
                 return result
             except Exception as e:
                 result['error'] = f"خطأ في قراءة JSON: {e}"
@@ -100,7 +125,7 @@ def extract_text_from_file(uploaded_file) -> dict:
                 reader = csv.reader(content.splitlines())
                 rows = ["\t".join(row) for row in reader]
                 text = "\n".join(rows)
-                result.update({"success": True, "text": text, "pages": 1})
+                result.update({"success": True, "text": text, "pages": 1, "signals": extract_structured_signals(text)})
                 return result
             except Exception as e:
                 result['error'] = f"خطأ في قراءة CSV: {e}"
