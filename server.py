@@ -94,6 +94,9 @@ class MatterUpdateRequest(BaseModel):
     description: Optional[str] = Field(default=None, max_length=5000)
 
 
+class ProcedureStepRequest(BaseModel):
+    status: Optional[str] = Field(default=None, max_length=40)
+    notes: Optional[str] = Field(default=None, max_length=3000)
 class ClaimEvidenceRequest(BaseModel):
     claim_id: str = Field(min_length=2, max_length=80)
     document_id: str = Field(min_length=2, max_length=80)
@@ -211,6 +214,13 @@ async def matter_intelligence_endpoint(matter_id: str, _: None = Depends(require
     except KeyError:
         raise HTTPException(status_code=404, detail="القضية غير موجودة")
 
+
+@app.patch("/api/matters/{matter_id}/procedure/{step_key}")
+async def update_procedure_step(matter_id: str, step_key: str, request: ProcedureStepRequest, _: None = Depends(require_access)):
+    try:
+        return {"ok": True, "step": workspace_store.update_procedure_step(matter_id, step_key, request.model_dump(exclude_none=True))}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="المرحلة أو القضية غير موجودة")
 
 @app.get("/api/matters/{matter_id}/package")
 async def matter_package(matter_id: str, _: None = Depends(require_access)):
