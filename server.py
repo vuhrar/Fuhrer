@@ -25,6 +25,7 @@ import reporting
 import case_package
 import matter_intelligence as intelligence_engine
 import advanced_dispute_engine
+import legal_case_theory
 from legal_tools_advanced import legal_classifier
 from legal_intelligence import OFFICIAL_SOURCES, evidence_checklist, extract_obligations, legal_review_package, procedure_requirements, scan_risks, search_with_sources
 
@@ -233,6 +234,14 @@ async def advanced_review(matter_id: str, role: str = "مستشار عمالي",
     try:
         matter = workspace_store.get_matter(matter_id)
         return {"ok": True, "review": advanced_dispute_engine.assess_matter(matter, role)}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+
+
+@app.get("/api/matters/{matter_id}/case-theory")
+async def case_theory(matter_id: str, role: str = "مستشار عمالي", _: None = Depends(require_access)):
+    try:
+        return {"ok": True, "theory": legal_case_theory.build_case_theory(workspace_store.get_matter(matter_id), role)}
     except KeyError:
         raise HTTPException(status_code=404, detail="القضية غير موجودة")
 

@@ -24,6 +24,10 @@ def test_maximum_api_acceptance(tmp_path, monkeypatch):
     assert roles.status_code == 200
     assert [x["key"] for x in roles.json()["roles"]] == ["محامي", "مستشار قانوني", "مستشار عمالي"]
     advanced = client.get(f"/api/matters/{matter_id}/advanced-review", headers=headers, params={"role": "مستشار عمالي"})
+    theory = client.get(f"/api/matters/{matter_id}/case-theory", headers=headers, params={"role": "محامي"})
+    assert theory.status_code == 200
+    assert theory.json()["theory"]["engine_version"] == "1.0"
+    assert theory.json()["theory"]["administration_challenge_plan"]
     assert advanced.status_code == 200
     assert advanced.json()["review"]["engine_version"] == "2.0"
     assert advanced.json()["review"]["role"]["label"] == "المستشار العمالي"
