@@ -24,6 +24,7 @@ import workspace_store
 import reporting
 import case_package
 import matter_intelligence as intelligence_engine
+import advanced_dispute_engine
 from legal_tools_advanced import legal_classifier
 from legal_intelligence import OFFICIAL_SOURCES, evidence_checklist, extract_obligations, legal_review_package, procedure_requirements, scan_risks, search_with_sources
 
@@ -184,6 +185,11 @@ async def health():
     return {"ok": True, "app": "Führer PWA", "version": app.version, "single_user": True}
 
 
+@app.get("/api/roles")
+async def roles(_: None = Depends(require_access)):
+    return {"ok": True, "roles": advanced_dispute_engine.role_catalog()}
+
+
 @app.get("/api/dashboard")
 async def dashboard(_: None = Depends(require_access)):
     return {"ok": True, "dashboard": workspace_store.dashboard()}
@@ -221,6 +227,15 @@ async def update_procedure_step(matter_id: str, step_key: str, request: Procedur
         return {"ok": True, "step": workspace_store.update_procedure_step(matter_id, step_key, request.model_dump(exclude_none=True))}
     except KeyError:
         raise HTTPException(status_code=404, detail="المرحلة أو القضية غير موجودة")
+
+@app.get("/api/matters/{matter_id}/advanced-review")
+async def advanced_review(matter_id: str, role: str = "مستشار عمالي", _: None = Depends(require_access)):
+    try:
+        matter = workspace_store.get_matter(matter_id)
+        return {"ok": True, "review": advanced_dispute_engine.assess_matter(matter, role)}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+
 
 @app.get("/api/matters/{matter_id}/package")
 async def matter_package(matter_id: str, _: None = Depends(require_access)):

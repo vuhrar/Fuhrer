@@ -20,6 +20,13 @@ def test_maximum_api_acceptance(tmp_path, monkeypatch):
     created = client.post("/api/matters", json={"title": "نزاع أجر وإنهاء", "matter_type": "نزاع عمالي"}, headers=headers)
     assert created.status_code == 200
     matter_id = created.json()["matter"]["id"]
+    roles = client.get("/api/roles", headers=headers)
+    assert roles.status_code == 200
+    assert [x["key"] for x in roles.json()["roles"]] == ["محامي", "مستشار قانوني", "مستشار عمالي"]
+    advanced = client.get(f"/api/matters/{matter_id}/advanced-review", headers=headers, params={"role": "مستشار عمالي"})
+    assert advanced.status_code == 200
+    assert advanced.json()["review"]["engine_version"] == "2.0"
+    assert advanced.json()["review"]["role"]["label"] == "المستشار العمالي"
     raw = b"salary evidence 2025-05-31 12000 SAR"
     uploaded = client.post("/api/upload", headers=headers, data={"matter_id": matter_id}, files={"files": ("salary.txt", io.BytesIO(raw), "text/plain")})
     assert uploaded.status_code == 200
