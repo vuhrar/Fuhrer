@@ -8,9 +8,13 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Any, Dict, Iterable, List
 
+from legal_text_processor import analyze_legal_text
+
 
 POSITIVE_STATUSES = {"positive_signal", "مؤشر إيجابي", "مثبت مبدئيًا", "مؤيد"}
 NEGATIVE_STATUSES = {"negated_by_employer", "negated_by_worker", "منفي", "دفع من الإدارة", "منفي من الإدارة"}
+NEGATIVE_STATUSES |= {"payment_claimed_by_employer", "دفع أو نفي يحتاج اختبارًا"}
+NEUTRAL_STATUSES = {"unproven", "insufficient_context", "quoted_claim", "غير مثبت", "غير محدد"}
 
 
 def _clamp(value: float) -> float:
@@ -130,8 +134,10 @@ def fuse_semantic_table_evidence(
             bucket["negative"].append(statement)
             if statement.get("speaker"):
                 bucket["speakers"].add(statement["speaker"])
-        else:
+        elif status not in NEUTRAL_STATUSES:
             bucket["positive"].append(statement)
+        elif statement.get("speaker"):
+            bucket["speakers"].add(statement["speaker"])
         bucket["traces"].append(_trace(statement, "contextual_statement"))
         if statement.get("text") or statement.get("excerpt"):
             bucket["why"].append(statement.get("text") or statement.get("excerpt"))
@@ -188,3 +194,29 @@ def fuse_semantic_table_evidence(
             "human_review_required": True,
         })
     return sorted(results, key=lambda item: item["final_confidence"], reverse=True)
+
+
+def fuse_text_with_evidence(
+    text: str,
+    right_concepts: Dict[str, Iterable[str]],
+    semantic_matches: Iterable[Dict[str, Any]] = (),
+    table_entities: Iterable[Dict[str, Any]] = (),
+    *,
+    document_id: str | None = None,
+    filename: str | None = None,
+    page: int | None = None,
+    right_catalog: Dict[str, Dict[str, Any]] | None = None,
+    claim_keys: Iterable[str] = (),
+    min_score: float = 0.20,
+) -> Dict[str, Any]:
+    """حلّل النص العربي ثم ادمج عباراته مع الدلالة والجداول في خطوة واحدة."""
+    statements = analyze_legal_text(text, right_concepts, document_id=document_id, filename=filename, page=page)
+    results = fuse_semantic_table_evidence(
+        semantic_matches,
+        table_entities,
+        statements,
+        right_catalog=right_catalog,
+        claim_keys=claim_keys,
+        min_score=min_score,
+    )
+    return {"statements": statements, "findings": results, "text_characters": len(text or ""), "human_review_required": True}
