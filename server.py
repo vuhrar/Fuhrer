@@ -488,7 +488,7 @@ async def upload(files: List[UploadFile] = File(...), matter_id: Optional[str] =
                 filename = item.get("filename", "مستند")
                 raw_bytes = raw_by_name.get(filename, b"")
                 metadata = file_metadata.get(filename, {})
-                saved = workspace_store.add_document(matter_id, filename, "مرفوع", text, hashlib.sha256(raw_bytes).hexdigest(), byte_size=metadata.get("byte_size", len(raw_bytes)), mime_type=metadata.get("mime_type", "application/octet-stream"), metadata={"signals": item.get("signals", {}), "inspection_status": item.get("inspection_status"), "manual_review_required": item.get("manual_review_required", True), "errors": item.get("errors", [])}, raw_bytes=raw_bytes)
+                saved = workspace_store.add_document(matter_id, filename, "مرفوع", text, hashlib.sha256(raw_bytes).hexdigest(), byte_size=metadata.get("byte_size", len(raw_bytes)), mime_type=metadata.get("mime_type", "application/octet-stream"), metadata={"signals": item.get("signals", {}), "inspection_status": item.get("inspection_status"), "manual_review_required": item.get("manual_review_required", True), "errors": item.get("errors", []), "page_records": item.get("page_records", []), "tables": item.get("tables", []), "extraction_method": item.get("extraction_method", ""), "ocr_confidence": item.get("ocr_confidence")}, raw_bytes=raw_bytes)
                 saved_documents.append(saved)
                 saved_inspections.append(workspace_store.save_document_inspection(saved["id"], matter_id, item))
             matter = workspace_store.get_matter(matter_id)
