@@ -6,7 +6,7 @@ import hashlib
 import hmac
 import io
 import os
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
@@ -28,6 +28,8 @@ import advanced_dispute_engine
 import legal_case_theory
 import document_inspection_engine
 import hidden_rights_engine
+import repository as legal_repository
+from evidence_fusion import fuse_text_with_evidence
 from legal_tools_advanced import legal_classifier
 from legal_intelligence import OFFICIAL_SOURCES, evidence_checklist, extract_obligations, legal_review_package, procedure_requirements, scan_risks, search_with_sources
 
@@ -39,6 +41,19 @@ MAX_FILE_BYTES = int(os.getenv("MAX_FILE_BYTES", str(25 * 1024 * 1024)))
 
 app = FastAPI(title="Führer Personal Legal PWA", version="3.0.0", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=os.path.join(WEB_DIR, "static")), name="static")
+_LEGAL_REPOSITORY = None
+_LEGAL_REPOSITORY_URL = None
+
+
+def get_legal_repository() -> legal_repository.Repository:
+    """يعيد Repository واحدًا لكل DATABASE_URL، ويعيد تهيئة المخطط عند تغير البيئة."""
+    global _LEGAL_REPOSITORY, _LEGAL_REPOSITORY_URL
+    config = legal_repository.RepositoryConfig.from_env()
+    if _LEGAL_REPOSITORY is None or _LEGAL_REPOSITORY_URL != config.url:
+        _LEGAL_REPOSITORY = legal_repository.Repository(config)
+        _LEGAL_REPOSITORY.init_schema()
+        _LEGAL_REPOSITORY_URL = config.url
+    return _LEGAL_REPOSITORY
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -74,6 +89,59 @@ class SearchRequest(BaseModel):
 
 class TextRequest(BaseModel):
     text: str = Field(min_length=1, max_length=50000)
+
+
+class RightsAnalysisRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=100000)
+    right_concepts: Dict[str, List[str]] = Field(min_length=1)
+    semantic_matches: List[Dict[str, Any]] = Field(default_factory=list, max_length=200)
+    table_entities: List[Dict[str, Any]] = Field(default_factory=list, max_length=200)
+    claim_keys: List[str] = Field(default_factory=list, max_length=100)
+    right_catalog: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+    document_id: Optional[str] = Field(default=None, max_length=120)
+    filename: Optional[str] = Field(default=None, max_length=255)
+    page: Optional[int] = Field(default=None, ge=1)
+
+
+class LegalEntitySaveRequest(BaseModel):
+    entity_type: str = Field(min_length=1, max_length=100)
+    value: Dict[str, Any]
+    document_id: Optional[str] = Field(default=None, max_length=120)
+    page_number: Optional[int] = Field(default=None, ge=1)
+    excerpt: str = Field(default="", max_length=10000)
+    confidence: Optional[float] = Field(default=None, ge=0, le=1)
+    polarity: Optional[str] = Field(default=None, max_length=80)
+    speaker: Optional[str] = Field(default=None, max_length=120)
+
+
+class LegalStatementSaveRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=20000)
+    speaker: Optional[str] = Field(default=None, max_length=120)
+    polarity: Optional[str] = Field(default=None, max_length=80)
+    status: Optional[str] = Field(default=None, max_length=100)
+    negation_cue: Optional[str] = Field(default=None, max_length=120)
+    quoted: bool = False
+    document_id: Optional[str] = Field(default=None, max_length=120)
+    page_number: Optional[int] = Field(default=None, ge=1)
+    start_offset: Optional[int] = Field(default=None, ge=0)
+    end_offset: Optional[int] = Field(default=None, ge=0)
+    confidence: Optional[float] = Field(default=None, ge=0, le=1)
+
+
+class RightTriggerSaveRequest(BaseModel):
+    discovered_right_id: str = Field(min_length=1, max_length=120)
+    trigger_type: str = Field(min_length=1, max_length=80)
+    excerpt: str = Field(default="", max_length=10000)
+    entity_id: Optional[str] = Field(default=None, max_length=120)
+    statement_id: Optional[str] = Field(default=None, max_length=120)
+    page_number: Optional[int] = Field(default=None, ge=1)
+    source_quality: Optional[float] = Field(default=None, ge=0, le=1)
+
+
+class ReviewDecisionRequest(BaseModel):
+    discovered_right_id: str = Field(min_length=1, max_length=120)
+    decision: str = Field(min_length=1, max_length=80)
+    note: str = Field(default="", max_length=5000)
 
 
 class MatterCreateRequest(BaseModel):
@@ -265,6 +333,84 @@ async def discovered_rights(matter_id: str, _: None = Depends(require_access)):
         return {"ok": True, "rights": workspace_store.list_discovered_rights(matter_id)}
     except KeyError:
         raise HTTPException(status_code=404, detail="القضية غير موجودة")
+
+
+@app.post("/api/matters/{matter_id}/rights/analyze")
+async def analyze_rights_with_repository(matter_id: str, request: RightsAnalysisRequest, _: None = Depends(require_access)):
+    """يشغل محلل النص/الدلالة/الجداول ويحفظ أثر كل نتيجة في Repository."""
+    try:
+        repo = get_legal_repository()
+        analysis = fuse_text_with_evidence(request.text, request.right_concepts, request.semantic_matches, request.table_entities, document_id=request.document_id, filename=request.filename, page=request.page, right_catalog=request.right_catalog, claim_keys=request.claim_keys)
+        saved_statements = [repo.save_statement(matter_id=matter_id, text=item["text"], speaker=item.get("speaker"), polarity=item.get("polarity"), status=item.get("status"), negation_cue=item.get("negation_cue"), quoted=bool(item.get("quoted")), document_id=item.get("document_id"), page_number=item.get("page"), start_offset=item.get("start"), end_offset=item.get("end"), confidence=item.get("confidence")) for item in analysis["statements"]]
+        saved_findings = []
+        for finding in analysis["findings"]:
+            saved = repo.save_right_finding(matter_id=matter_id, finding=finding)
+            saved_findings.append(saved)
+            for trace in finding.get("source_trace", [])[:20]:
+                repo.save_right_trigger(discovered_right_id=saved["id"], trigger_type=trace.get("trigger_type", "analysis"), excerpt=trace.get("excerpt") or "", statement_id=next((item["id"] for item in saved_statements if item.get("text") == trace.get("excerpt")), None), page_number=trace.get("page"), source_quality=trace.get("source_quality"))
+        return {"ok": True, "analysis": analysis, "persisted": {"statements": saved_statements, "findings": saved_findings}}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="تعذر تشغيل Repository أو حفظ نتيجة التحليل") from exc
+
+
+@app.post("/api/matters/{matter_id}/legal-entities")
+async def save_legal_entity(matter_id: str, request: LegalEntitySaveRequest, _: None = Depends(require_access)):
+    try:
+        item = get_legal_repository().save_entity(matter_id=matter_id, **request.model_dump())
+        return {"ok": True, "entity": item}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="تعذر حفظ الكيان القانوني") from exc
+
+
+@app.get("/api/matters/{matter_id}/legal-entities")
+async def list_legal_entities(matter_id: str, _: None = Depends(require_access)):
+    try:
+        return {"ok": True, "entities": get_legal_repository().list_entities(matter_id)}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="تعذر قراءة الكيانات القانونية") from exc
+
+
+@app.post("/api/matters/{matter_id}/legal-statements")
+async def save_legal_statement(matter_id: str, request: LegalStatementSaveRequest, _: None = Depends(require_access)):
+    try:
+        item = get_legal_repository().save_statement(matter_id=matter_id, **request.model_dump())
+        return {"ok": True, "statement": item}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="تعذر حفظ الجملة القانونية") from exc
+
+
+@app.get("/api/matters/{matter_id}/legal-statements")
+async def list_legal_statements(matter_id: str, _: None = Depends(require_access)):
+    try:
+        return {"ok": True, "statements": get_legal_repository().list_statements(matter_id)}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="تعذر قراءة الجمل القانونية") from exc
+
+
+@app.get("/api/matters/{matter_id}/repository-rights")
+async def list_repository_rights(matter_id: str, _: None = Depends(require_access)):
+    try:
+        return {"ok": True, "rights": get_legal_repository().list_right_findings(matter_id)}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="تعذر قراءة نتائج الحقوق من Repository") from exc
+
+
+@app.post("/api/matters/{matter_id}/right-triggers")
+async def save_right_trigger(matter_id: str, request: RightTriggerSaveRequest, _: None = Depends(require_access)):
+    try:
+        item = get_legal_repository().save_right_trigger(**request.model_dump())
+        return {"ok": True, "trigger": item, "matter_id": matter_id}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="تعذر حفظ محفز الحق") from exc
+
+
+@app.post("/api/matters/{matter_id}/right-review")
+async def save_right_review(matter_id: str, request: ReviewDecisionRequest, _: None = Depends(require_access)):
+    try:
+        item = get_legal_repository().save_review_decision(matter_id=matter_id, **request.model_dump())
+        return {"ok": True, "decision": item}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="تعذر حفظ قرار المراجعة") from exc
 
 
 @app.post("/api/matters/{matter_id}/inspect")

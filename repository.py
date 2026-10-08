@@ -108,6 +108,9 @@ class Repository:
         except ImportError as exc:
             raise RepositoryError("ثبت psycopg2-binary مطلوب لتخزين JSON في PostgreSQL") from exc
 
+    def _json_param(self, value: Any) -> Any:
+        return json.dumps(value, ensure_ascii=False) if self.is_sqlite else self._postgres_json(value)
+
     def _rows(self, cursor: Any) -> List[Dict[str, Any]]:
         if self.is_sqlite:
             return [dict(row) for row in cursor.fetchall()]
@@ -150,9 +153,18 @@ class Repository:
                 id {auto_id}, matter_id VARCHAR(120) NOT NULL, discovered_right_id VARCHAR(120) NOT NULL,
                 decision VARCHAR(80) NOT NULL, note TEXT NOT NULL DEFAULT '', created_at {timestamp} NOT NULL
             )""",
+            f"""CREATE TABLE IF NOT EXISTS discovered_rights (
+                id {auto_id}, matter_id VARCHAR(120) NOT NULL, right_key VARCHAR(120) NOT NULL,
+                label TEXT NOT NULL, status VARCHAR(120) NOT NULL, trigger_count INTEGER NOT NULL DEFAULT 0,
+                reason TEXT NOT NULL DEFAULT '', elements_json {json_type} NOT NULL, evidence_json {json_type} NOT NULL,
+                missing_json {json_type} NOT NULL, human_review_required {bool_type} NOT NULL DEFAULT {bool_default},
+                created_at {timestamp} NOT NULL, updated_at {timestamp} NOT NULL,
+                UNIQUE(matter_id, right_key)
+            )""",
             "CREATE INDEX IF NOT EXISTS idx_legal_entities_matter ON legal_entities(matter_id)",
             "CREATE INDEX IF NOT EXISTS idx_legal_statements_matter ON legal_statements(matter_id)",
             "CREATE INDEX IF NOT EXISTS idx_right_triggers_right ON discovered_right_triggers(discovered_right_id)",
+            "CREATE INDEX IF NOT EXISTS idx_discovered_rights_matter ON discovered_rights(matter_id)",
         ]
         with self.connection() as conn:
             for statement in statements:
@@ -177,6 +189,20 @@ class Repository:
             self._execute(conn, "INSERT INTO discovered_right_triggers(id,discovered_right_id,entity_id,statement_id,trigger_type,excerpt,page_number,source_quality,created_at) VALUES(?,?,?,?,?,?,?,?,?)", list(item.values()))
         return item
 
+    def save_right_finding(self, *, matter_id: str, finding: Mapping[str, Any], right_id: Optional[str] = None) -> Dict[str, Any]:
+        """يحفظ أو يحدّث نتيجة حق واحدة ويعيد معرفًا ثابتًا للقائمة."""
+        stamp = self._now()
+        right_key = str(finding.get("right_key", "unknown"))
+        item = {"id": right_id or self._id("right"), "matter_id": matter_id, "right_key": right_key, "label": str(finding.get("label", right_key)), "status": str(finding.get("status", "يحتاج تحقق")), "trigger_count": int(finding.get("trigger_count", len(finding.get("source_trace", []))) or 0), "reason": str(finding.get("reason", "")), "elements_json": finding.get("elements_to_verify", finding.get("elements", [])), "evidence_json": finding.get("evidence_needed", finding.get("evidence", [])), "missing_json": finding.get("missing_proof", finding.get("missing_items", [])), "human_review_required": bool(finding.get("human_review_required", True)), "created_at": stamp, "updated_at": stamp}
+        with self.connection() as conn:
+            existing = self._execute(conn, "SELECT id FROM discovered_rights WHERE matter_id=? AND right_key=?", [matter_id, right_key]).fetchone()
+            if existing:
+                item["id"] = existing[0]
+                self._execute(conn, "UPDATE discovered_rights SET label=?,status=?,trigger_count=?,reason=?,elements_json=?,evidence_json=?,missing_json=?,human_review_required=?,updated_at=? WHERE id=?", [item["label"], item["status"], item["trigger_count"], item["reason"], self._json_param(item["elements_json"]), self._json_param(item["evidence_json"]), self._json_param(item["missing_json"]), int(item["human_review_required"]) if self.is_sqlite else item["human_review_required"], stamp, item["id"]])
+            else:
+                self._execute(conn, "INSERT INTO discovered_rights(id,matter_id,right_key,label,status,trigger_count,reason,elements_json,evidence_json,missing_json,human_review_required,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", [item["id"], item["matter_id"], item["right_key"], item["label"], item["status"], item["trigger_count"], item["reason"], self._json_param(item["elements_json"]), self._json_param(item["evidence_json"]), self._json_param(item["missing_json"]), int(item["human_review_required"]) if self.is_sqlite else item["human_review_required"], stamp, stamp])
+        return item
+
     def save_review_decision(self, *, matter_id: str, discovered_right_id: str, decision: str, note: str = "", decision_id: Optional[str] = None) -> Dict[str, Any]:
         item = {"id": decision_id or self._id("review"), "matter_id": matter_id, "discovered_right_id": discovered_right_id, "decision": decision, "note": note, "created_at": self._now()}
         with self.connection() as conn:
@@ -198,6 +224,15 @@ class Repository:
     def list_right_triggers(self, discovered_right_id: str) -> List[Dict[str, Any]]:
         with self.connection() as conn:
             return self._rows(self._execute(conn, "SELECT * FROM discovered_right_triggers WHERE discovered_right_id=? ORDER BY created_at", [discovered_right_id]))
+
+    def list_right_findings(self, matter_id: str) -> List[Dict[str, Any]]:
+        with self.connection() as conn:
+            rows = self._rows(self._execute(conn, "SELECT * FROM discovered_rights WHERE matter_id=? ORDER BY updated_at DESC", [matter_id]))
+        for row in rows:
+            for key in ("elements_json", "evidence_json", "missing_json"):
+                if isinstance(row.get(key), str):
+                    row[key] = json.loads(row[key] or "[]")
+        return rows
 
     def list_review_decisions(self, matter_id: str) -> List[Dict[str, Any]]:
         with self.connection() as conn:
