@@ -31,11 +31,19 @@ def test_maximum_api_acceptance(tmp_path, monkeypatch):
     assert advanced.status_code == 200
     assert advanced.json()["review"]["engine_version"] == "2.0"
     assert advanced.json()["review"]["role"]["label"] == "المستشار العمالي"
-    raw = b"salary evidence 2025-05-31 12000 SAR"
+    raw = "راتب متأخر وخصم من الراتب والعمل ساعات إضافية بعد الدوام 2025-05-31 12000 SAR".encode()
     uploaded = client.post("/api/upload", headers=headers, data={"matter_id": matter_id}, files={"files": ("salary.txt", io.BytesIO(raw), "text/plain")})
     assert uploaded.status_code == 200
     doc = uploaded.json()["saved_documents"][0]
     assert doc["source_hash"] == hashlib.sha256(raw).hexdigest()
+    assert uploaded.json()["saved_inspections"][0]["inspection_status"] == "مقروء"
+    assert uploaded.json()["rights_discovery"]["undisclosed_count"] >= 2
+    inspections = client.get(f"/api/matters/{matter_id}/document-inspections", headers=headers)
+    assert inspections.status_code == 200
+    assert inspections.json()["coverage"]["documents_read"] == 1
+    rights = client.get(f"/api/matters/{matter_id}/discovered-rights", headers=headers)
+    assert rights.status_code == 200
+    assert any(x["right_key"] == "overtime" for x in rights.json()["rights"])
     integrity = client.get(f"/api/documents/{doc['id']}/integrity", headers=headers, params={"matter_id": matter_id})
     assert integrity.status_code == 200 and integrity.json()["integrity"]["verified"] is True
     intelligence = client.get(f"/api/matters/{matter_id}/intelligence", headers=headers)

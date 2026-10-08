@@ -26,6 +26,8 @@ import case_package
 import matter_intelligence as intelligence_engine
 import advanced_dispute_engine
 import legal_case_theory
+import document_inspection_engine
+import hidden_rights_engine
 from legal_tools_advanced import legal_classifier
 from legal_intelligence import OFFICIAL_SOURCES, evidence_checklist, extract_obligations, legal_review_package, procedure_requirements, scan_risks, search_with_sources
 
@@ -246,6 +248,37 @@ async def case_theory(matter_id: str, role: str = "مستشار عمالي", _: 
         raise HTTPException(status_code=404, detail="القضية غير موجودة")
 
 
+@app.get("/api/matters/{matter_id}/document-inspections")
+async def document_inspections(matter_id: str, _: None = Depends(require_access)):
+    try:
+        workspace_store.get_matter(matter_id)
+        rows = workspace_store.list_document_inspections(matter_id)
+        return {"ok": True, "inspections": rows, "coverage": {"documents_total": len(rows), "documents_read": sum(bool(x.get("readable")) for x in rows), "documents_unreadable": sum(not bool(x.get("readable")) for x in rows)}}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+
+
+@app.get("/api/matters/{matter_id}/discovered-rights")
+async def discovered_rights(matter_id: str, _: None = Depends(require_access)):
+    try:
+        workspace_store.get_matter(matter_id)
+        return {"ok": True, "rights": workspace_store.list_discovered_rights(matter_id)}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+
+
+@app.post("/api/matters/{matter_id}/inspect")
+async def inspect_matter(matter_id: str, _: None = Depends(require_access)):
+    try:
+        matter = workspace_store.get_matter(matter_id)
+        rights = hidden_rights_engine.discover(matter)
+        saved = workspace_store.replace_discovered_rights(matter_id, rights["findings"])
+        rows = workspace_store.list_document_inspections(matter_id)
+        return {"ok": True, "coverage": {"documents_total": len(rows), "documents_read": sum(bool(x.get("readable")) for x in rows), "documents_unreadable": sum(not bool(x.get("readable")) for x in rows)}, "rights": {**rights, "findings": saved}}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+
+
 @app.get("/api/matters/{matter_id}/package")
 async def matter_package(matter_id: str, _: None = Depends(require_access)):
     try:
@@ -431,6 +464,7 @@ async def upload(files: List[UploadFile] = File(...), matter_id: Optional[str] =
         raise HTTPException(status_code=413, detail=f"الحد الأقصى {MAX_FILES} ملفات")
     file_objects = []
     file_metadata = {}
+    raw_by_name = {}
     for upload in files:
         data = await upload.read()
         if len(data) > MAX_FILE_BYTES:
@@ -440,19 +474,26 @@ async def upload(files: List[UploadFile] = File(...), matter_id: Optional[str] =
         file_obj = io.BytesIO(data)
         file_obj.name = upload.filename
         file_objects.append(file_obj)
+        raw_by_name[upload.filename] = data
         file_metadata[upload.filename] = {"mime_type": upload.content_type or "application/octet-stream", "byte_size": len(data)}
-    batch = file_processing.process_multiple_files(file_objects)
+    inspected = [document_inspection_engine.inspect_file(obj, raw_by_name.get(getattr(obj, "name", ""), b"")) for obj in file_objects]
+    batch = document_inspection_engine.coverage_summary(inspected) | {"results": inspected, "texts": [f"=== {x['filename']} ===\n{x['text']}" for x in inspected if x.get("text")], "total": len(inspected), "success": sum(bool(x.get("readable")) for x in inspected), "failed": sum(not bool(x.get("readable")) for x in inspected)}
     saved_documents = []
+    saved_inspections = []
+    rights_result = {"findings": [], "undisclosed_count": 0, "documents_considered": 0}
     if matter_id:
         try:
             for item in batch.get("results", []):
-                if item.get("success"):
-                    text = item.get("text", "")
-                    filename = item.get("filename", "مستند")
-                    original = next((obj for obj in file_objects if getattr(obj, "name", "") == filename), None)
-                    raw_bytes = original.getvalue() if original is not None else text.encode("utf-8")
-                    metadata = file_metadata.get(filename, {})
-                    saved_documents.append(workspace_store.add_document(matter_id, filename, "مرفوع", text, hashlib.sha256(raw_bytes).hexdigest(), byte_size=metadata.get("byte_size", len(raw_bytes)), mime_type=metadata.get("mime_type", "application/octet-stream"), metadata=item.get("signals", {}), raw_bytes=raw_bytes))
+                text = item.get("text", "")
+                filename = item.get("filename", "مستند")
+                raw_bytes = raw_by_name.get(filename, b"")
+                metadata = file_metadata.get(filename, {})
+                saved = workspace_store.add_document(matter_id, filename, "مرفوع", text, hashlib.sha256(raw_bytes).hexdigest(), byte_size=metadata.get("byte_size", len(raw_bytes)), mime_type=metadata.get("mime_type", "application/octet-stream"), metadata={"signals": item.get("signals", {}), "inspection_status": item.get("inspection_status"), "manual_review_required": item.get("manual_review_required", True), "errors": item.get("errors", [])}, raw_bytes=raw_bytes)
+                saved_documents.append(saved)
+                saved_inspections.append(workspace_store.save_document_inspection(saved["id"], matter_id, item))
+            matter = workspace_store.get_matter(matter_id)
+            rights_result = hidden_rights_engine.discover(matter)
+            rights_result["findings"] = workspace_store.replace_discovered_rights(matter_id, rights_result["findings"])
         except KeyError:
             raise HTTPException(status_code=404, detail="القضية غير موجودة")
     return {
@@ -461,4 +502,6 @@ async def upload(files: List[UploadFile] = File(...), matter_id: Optional[str] =
         "results": batch["results"],
         "texts": batch["texts"],
         "saved_documents": saved_documents,
+        "saved_inspections": saved_inspections,
+        "rights_discovery": rights_result,
     }

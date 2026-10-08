@@ -8,6 +8,7 @@ from typing import Any, Dict
 from matter_intelligence import analyze_matter
 import advanced_dispute_engine
 import legal_case_theory
+import hidden_rights_engine
 
 
 def _now() -> str:
@@ -37,11 +38,19 @@ def build_package(matter: Dict[str, Any]) -> Dict[str, Any]:
     intelligence = analyze_matter(matter)
     advanced_review = advanced_dispute_engine.assess_matter(matter)
     case_theory = legal_case_theory.build_case_theory(matter)
+    hidden_rights = hidden_rights_engine.discover(matter)
+    inspections = matter.get("document_inspections", [])
+    inspection_coverage = {
+        "documents_total": len(inspections),
+        "documents_read": sum(bool(x.get("readable")) for x in inspections),
+        "documents_unreadable": sum(not bool(x.get("readable")) for x in inspections),
+        "manual_review_required": any(not bool(x.get("readable")) for x in inspections),
+    }
     issue_count = quality_flags["facts_without_date"] + quality_flags["unverified_facts"] + quality_flags["claims_without_basis"] + quality_flags["claims_without_evidence_link"] + quality_flags["facts_without_source_link"]
     denominator = max(1, len(facts) * 2 + len(claims) * 2 + 2)
     completeness = max(0, min(100, round(100 * (1 - issue_count / denominator))))
     return {
-        "package_version": "1.1",
+        "package_version": "1.2",
         "generated_at": _now(),
         "disclaimer": "مخرج عمل أولي للمراجعة الشخصية؛ لا يمثل رأيًا قانونيًا نهائيًا ولا يغني عن التحقق المهني.",
         "matter": {k: matter.get(k, "") for k in ("id", "title", "matter_type", "status", "priority", "client_name", "opposing_party", "jurisdiction", "description", "created_at", "updated_at")},
@@ -62,6 +71,8 @@ def build_package(matter: Dict[str, Any]) -> Dict[str, Any]:
         "intelligence": intelligence,
         "advanced_review": advanced_review,
         "case_theory": case_theory,
+        "inspection_coverage": inspection_coverage,
+        "hidden_rights": hidden_rights,
         "procedure_steps": matter.get("procedure_steps", []),
         "next_actions": [
             "أضف تاريخًا لكل واقعة غير مؤرخة." if quality_flags["facts_without_date"] else "لا توجد وقائع بلا تاريخ.",
@@ -109,7 +120,9 @@ def to_markdown(package: Dict[str, Any]) -> str:
     advanced_lines = [f"- {x.get('domain')}: {x.get('severity')} — {x.get('action')}" for x in advanced.get("risk_register", [])] or ["- لا توجد مؤشرات مخاطر متقدمة مسجلة."]
     theory = package.get("case_theory", {})
     theory_lines = [f"- {x.get('issue')}: {x.get('position_gap')} — نقص الإثبات: {', '.join(x.get('missing_proof', [])) or 'لا يوجد محدد آليًا'}" for x in theory.get("issues", [])] or ["- لم تُصنّف مسألة قضية بعد."]
-    lines.extend(["", "## 8. فحص جودة الملف", "", f"- درجة اكتمال الملف: {package.get('completeness_score', 0)}%", f"- درجة الجاهزية التحليلية: {readiness.get('score', 0)}% — {readiness.get('label', 'غير متاح')}", f"- نطاق الفحص: {intel.get('coverage', {}).get('sources_scanned', 0)} مصدر/سجل و{intel.get('coverage', {}).get('characters_scanned', 0)} حرفًا", *[f"- الإجراء التالي: {x}" for x in package.get('next_actions', [])], f"- وقائع بلا تاريخ: {q['facts_without_date']}", f"- وقائع غير متحققة أو محل نزاع: {q['unverified_facts']}", f"- طلبات بلا أساس مدخل: {q['claims_without_basis']}", f"- عدد المستندات: {q['documents_count']}", f"- روابط الأدلة: {q['evidence_links_count']}", f"- المواعيد المفتوحة: {q['open_deadlines']}", "", "### النواقص الحرجة", *gap_lines, "", "### التناقضات المحتملة", *contradiction_lines, "", "## 9. المسار الإجرائي", *procedure_lines, "", "## 10. سجل المخاطر المتقدم", *advanced_lines, "", "## 11. نظرية القضية وخطة المواجهة", *theory_lines, "", "## 12. ضوابط قبل الاعتماد", "", "- مطابقة كل واقعة بالمستند الأصلي أو تسجيلها صراحة كواقعة غير متحققة.", "- مراجعة النص النظامي النافذ وتاريخ آخر تحديث من المصدر الرسمي.", "- مراجعة المواعيد والإجراءات من الإشعارات أو المنصات الرسمية.", "- مراجعة المذكرة من محامٍ مرخص قبل تقديمها أو اتخاذ إجراء قانوني."])
+    coverage = package.get("inspection_coverage", {})
+    hidden_lines = [f"- {x.get('label')}: {x.get('status')} — {x.get('reason')} — المصدر: {', '.join(t.get('filename') or 'مدخلات القضية' for t in x.get('triggers', [])[:2])}" for x in package.get("hidden_rights", {}).get("findings", [])] or ["- لم تظهر مؤشرات حقوق من النص المفحوص."]
+    lines.extend(["", "## 8. فحص جودة الملف", "", f"- درجة اكتمال الملف: {package.get('completeness_score', 0)}%", f"- درجة الجاهزية التحليلية: {readiness.get('score', 0)}% — {readiness.get('label', 'غير متاح')}", f"- تغطية المرفقات: {coverage.get('documents_read', 0)} مقروءة من {coverage.get('documents_total', 0)}", f"- ملفات تحتاج مراجعة يدوية: {coverage.get('documents_unreadable', 0)}", f"- نطاق الفحص: {intel.get('coverage', {}).get('sources_scanned', 0)} مصدر/سجل و{intel.get('coverage', {}).get('characters_scanned', 0)} حرفًا", *[f"- الإجراء التالي: {x}" for x in package.get('next_actions', [])], f"- وقائع بلا تاريخ: {q['facts_without_date']}", f"- وقائع غير متحققة أو محل نزاع: {q['unverified_facts']}", f"- طلبات بلا أساس مدخل: {q['claims_without_basis']}", f"- عدد المستندات: {q['documents_count']}", f"- روابط الأدلة: {q['evidence_links_count']}", f"- المواعيد المفتوحة: {q['open_deadlines']}", "", "### الحقوق المحتملة المكتشفة", *hidden_lines, "", "### النواقص الحرجة", *gap_lines, "", "### التناقضات المحتملة", *contradiction_lines, "", "## 9. المسار الإجرائي", *procedure_lines, "", "## 10. سجل المخاطر المتقدم", *advanced_lines, "", "## 11. نظرية القضية وخطة المواجهة", *theory_lines, "", "## 12. ضوابط قبل الاعتماد", "", "- مطابقة كل واقعة بالمستند الأصلي أو تسجيلها صراحة كواقعة غير متحققة.", "- مراجعة النص النظامي النافذ وتاريخ آخر تحديث من المصدر الرسمي.", "- مراجعة المواعيد والإجراءات من الإشعارات أو المنصات الرسمية.", "- مراجعة المذكرة من محامٍ مرخص قبل تقديمها أو اتخاذ إجراء قانوني."])
     return "\n".join(lines)
 
 

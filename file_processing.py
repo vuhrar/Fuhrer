@@ -103,7 +103,11 @@ def extract_text_from_file(uploaded_file) -> dict:
                 from docx import Document
                 doc = Document(io.BytesIO(uploaded_file.read()))
                 paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
-                text = "\n".join(paragraphs)
+                tables = []
+                for table in doc.tables:
+                    for row in table.rows:
+                        tables.append(" | ".join(cell.text.strip() for cell in row.cells))
+                text = "\n".join(paragraphs + tables)
                 result.update({"success": True, "text": text, "pages": 1, "signals": extract_structured_signals(text)})
                 return result
             except Exception as e:
@@ -136,7 +140,7 @@ def extract_text_from_file(uploaded_file) -> dict:
                 from PIL import Image
                 img = Image.open(io.BytesIO(uploaded_file.read()))
                 text = pytesseract.image_to_string(img, lang='ara+eng')
-                result.update({"success": True, "text": text.strip(), "pages": 1})
+                result.update({"success": True, "text": text.strip(), "pages": 1, "signals": extract_structured_signals(text)})
                 return result
             except Exception as e:
                 result['error'] = f"خطأ في OCR: {e}"
