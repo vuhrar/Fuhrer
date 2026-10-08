@@ -71,3 +71,23 @@ repo.save_right_trigger(
 - أنشئ migrations رسمية قبل تغيير المخطط الإنتاجي.
 - طبقة Repository الحالية لا تحذف الجداول القائمة؛ تنشئ فقط جداول البيانات المنظمة الجديدة.
 - SQLite مناسب للاستخدام الفردي المحلي، وPostgreSQL هو الخيار المناسب للنسخة المستضافة أو المهام المتوازية.
+
+## اختبارات التكامل الحقيقية لـ PostgreSQL
+
+الملف `tests/test_repository_postgres_integration.py` لا يستخدم `DATABASE_URL` تلقائيًا، لتجنب الاتصال بقاعدة الإنتاج. شغّله فقط مع DSN اختبار مستقل:
+
+```bash
+export FUHRER_TEST_POSTGRES_URL='postgresql://test_user:test_password@127.0.0.1:5432/fuhrer_test'
+python3 -m pytest -q tests/test_repository_postgres_integration.py
+```
+
+الاختبارات تتحقق من:
+
+- الاتصال وإنشاء المخطط الحقيقي.
+- دورة JSONB في PostgreSQL.
+- حفظ واسترجاع الجمل وحالتها المنفية.
+- ربط محفز الحق بالجملة.
+- حفظ قرار المراجعة.
+- قراءة وكتابة عدد من السجلات ضمن حد زمني قابل للضبط.
+
+تستخدم الاختبارات معرفات معزولة وتنفذ تنظيفًا في `finally`. في حال عدم ضبط `FUHRER_TEST_POSTGRES_URL` تُتجاوز الاختبارات عمدًا، بينما تبقى اختبارات SQLite المحلية فعالة.
