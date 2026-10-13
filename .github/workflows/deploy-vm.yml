@@ -1,0 +1,36 @@
+name: Deploy FüLaw to private VM
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fulaw-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy through SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.VM_SSH_PORT || '22' }}
+          script_stop: true
+          script: |
+            set -eu
+            cd /opt/fulaw
+            git fetch origin main
+            git reset --hard origin/main
+            docker compose up -d --build
+            docker compose ps
+            curl --fail --silent --show-error http://127.0.0.1:8000/ >/dev/null
+            echo "FüLaw deployment completed"
