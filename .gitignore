@@ -53,3 +53,5 @@ node_modules/
 
 # Docker
 docker-compose.override.yml
+# Runtime legal-source snapshots (raw PDFs/text and mutable registry)
+data/official_sources/

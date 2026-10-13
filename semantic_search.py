@@ -51,19 +51,23 @@ def build_corpus() -> List[Dict[str, Any]]:
     # أصلًا)، فكانت كل مادة مستخرجة تُصنَّف "curated" هنا مرة، ثم تتكرر
     # "extracted" مرة أخرى أدناه — تكرار ومستوى ثقة خاطئ معًا.
     # get_curated_articles() الجديدة تُعيد فقط الـ25 المُدخلة يدويًا فعلًا.
-    for art in get_legal_database().get_curated_articles():
+    database = get_legal_database()
+    official_active = getattr(database, "_source_mode", "") == "official_snapshot"
+    for art in database.get_curated_articles():
         docs.append({
             "doc_id": f"curated_{art.get('article')}",
             "article": art.get("article"),
             "title": art.get("title", ""),
             "category": art.get("category", ""),
             "text": art.get("text", ""),
-            "trust_tier": "curated",
+            "trust_tier": "official_snapshot" if official_active else "curated",
             "needs_verification": False,
+            "source_id": art.get("source_id", "boe_labor_law" if official_active else "manual_curated"),
+            "source_status": art.get("source_status", "ساري" if official_active else "يتطلب تحققًا من المصدر الرسمي"),
         })
 
     kb_path = _kb_json_path()
-    if os.path.exists(kb_path):
+    if os.path.exists(kb_path) and not official_active:
         try:
             with open(kb_path, "r", encoding="utf-8") as f:
                 systems = json.load(f)

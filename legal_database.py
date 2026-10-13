@@ -133,11 +133,34 @@ def load_extended_knowledge():
             return []
     return []
 
+
+def load_verified_official_articles():
+    """يعيد فقط snapshot اجتاز تحقق المزامنة الرسمي، وإلا يعيد قائمة فارغة."""
+    base = os.getenv("OFFICIAL_SOURCE_DATA_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "official_sources"))
+    registry_path = os.path.join(base, "registry.json")
+    articles_path = os.path.join(base, "official_labor_articles.json")
+    try:
+        with open(registry_path, "r", encoding="utf-8") as file:
+            registry = json.load(file)
+        snapshot = registry.get("active_snapshot")
+        if not snapshot or not os.path.exists(articles_path):
+            return []
+        with open(articles_path, "r", encoding="utf-8") as file:
+            payload = json.load(file)
+        articles = payload.get("articles", [])
+        if len(articles) < 100 or any(article.get("needs_verification") for article in articles):
+            return []
+        return articles
+    except (OSError, ValueError, TypeError):
+        return []
+
 class LegalDatabase:
     """قاعدة البيانات القانونية الموحدة."""
 
     def __init__(self):
-        self._articles = _LABOR_LAW_ARTICLES + load_extended_knowledge()
+        official = load_verified_official_articles()
+        self._source_mode = "official_snapshot" if official else "fallback_curated_and_extracted"
+        self._articles = official or (_LABOR_LAW_ARTICLES + load_extended_knowledge())
         self._glossary = _LEGAL_GLOSSARY
 
     def search_laws(self, query: str, category: Optional[str] = None) -> List[Dict]:
@@ -179,7 +202,7 @@ class LegalDatabase:
         الرقمي، حيازة الأدوية المخدرة...) معروضة بنفس درجة الثقة. هذه
         الدالة تُعيد فقط القائمة اليدوية الأصلية _LABOR_LAW_ARTICLES.
         """
-        return list(_LABOR_LAW_ARTICLES)
+        return list(self._articles if self._source_mode == "official_snapshot" else _LABOR_LAW_ARTICLES)
 
     def get_all_categories(self) -> List[str]:
         return sorted(set(a.get("category", "عام") for a in self._articles))

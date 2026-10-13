@@ -22,6 +22,7 @@ import ai_engine
 import file_processing
 import document_inspection_engine
 import hidden_rights_engine
+import official_source_sync
 import workspace_store
 import reporting
 import case_package
@@ -657,6 +658,22 @@ async def procedure_requirements_endpoint(step_key: str, _: None = Depends(requi
 @app.get("/api/legal/sources")
 async def legal_sources(_: None = Depends(require_access)):
     return {"ok": True, "sources": OFFICIAL_SOURCES}
+
+
+@app.get("/api/legal/sync-status")
+async def legal_sync_status(_: None = Depends(require_access)):
+    return {"ok": True, "sync": official_source_sync.get_sync_status()}
+
+
+@app.post("/api/legal/sync-now")
+async def legal_sync_now(_: None = Depends(require_access)):
+    result = await asyncio.to_thread(official_source_sync.sync_official_sources)
+    if result.get("ok"):
+        import legal_database
+        import semantic_search
+        legal_database._db_instance = None
+        semantic_search._INDEX = None
+    return {"ok": result.get("ok", False), "sync": result}
 
 
 @app.post("/api/legal/review")
