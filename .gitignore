@@ -25,6 +25,11 @@ ENV/
 
 # Streamlit
 fuehrer_data/
+fuhrer_data/
+*.storage.key
+.storage.key
+legal_library/
+data/workspace.sqlite3*
 
 # IDE
 .idea/

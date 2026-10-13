@@ -17,6 +17,53 @@ os.makedirs(DATA_DIR, exist_ok=True)
 BLOB_DIR = os.path.join(DATA_DIR, "document_blobs")
 os.makedirs(BLOB_DIR, exist_ok=True)
 DB_PATH = os.path.join(DATA_DIR, "workspace.sqlite3")
+KEY_PATH = os.path.join(DATA_DIR, ".storage.key")
+
+
+def _fernet():
+    try:
+        from cryptography.fernet import Fernet
+    except ImportError:
+        return None
+    configured = os.getenv("FULAW_STORAGE_KEY", "").strip().encode("ascii")
+    if configured:
+        return Fernet(configured)
+    if os.path.exists(KEY_PATH):
+        key = open(KEY_PATH, "rb").read().strip()
+    else:
+        key = Fernet.generate_key()
+        fd = os.open(KEY_PATH, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(key)
+    os.chmod(KEY_PATH, 0o600)
+    return Fernet(key)
+
+
+def encrypt_bytes(value: bytes) -> bytes:
+    cipher = _fernet()
+    return b"FULAW-ENC-1:" + cipher.encrypt(value) if cipher else b"FULAW-PLAIN:" + value
+
+
+def decrypt_bytes(value: bytes) -> bytes:
+    if value.startswith(b"FULAW-ENC-1:"):
+        cipher = _fernet()
+        if not cipher:
+            raise RuntimeError("مفتاح التخزين غير متاح")
+        return cipher.decrypt(value[len(b"FULAW-ENC-1:"):])
+    if value.startswith(b"FULAW-PLAIN:"):
+        return value[len(b"FULAW-PLAIN:"):]
+    return value
+
+
+def encrypt_text(value: str) -> str:
+    return encrypt_bytes(value.encode("utf-8")).decode("ascii")
+
+
+def decrypt_text(value: str) -> str:
+    try:
+        return decrypt_bytes(value.encode("ascii")).decode("utf-8")
+    except (UnicodeEncodeError, ValueError):
+        return value
 
 PROCEDURE_STEPS = [
     ("intake", "استقبال وتثبيت النطاق"),
@@ -234,11 +281,11 @@ def add_document(matter_id: Optional[str], filename: str, kind: str, extracted_t
         os.makedirs(BLOB_DIR, exist_ok=True)
         storage_path = os.path.join(BLOB_DIR, f"{document_id}.bin")
         with open(storage_path, "wb") as blob:
-            blob.write(raw_bytes)
+            blob.write(encrypt_bytes(raw_bytes))
     with connect() as db:
         if matter_id and not db.execute("SELECT 1 FROM matters WHERE id=?", (matter_id,)).fetchone():
             raise KeyError(matter_id)
-        db.execute("INSERT INTO documents(id,matter_id,filename,kind,extracted_text,source_hash,byte_size,mime_type,storage_path,retention_class,integrity_status,metadata_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", (document_id, matter_id, filename, kind, extracted_text, source_hash, byte_size, mime_type, storage_path, "حساس", "سليم", json.dumps(metadata or {}, ensure_ascii=False), stamp))
+        db.execute("INSERT INTO documents(id,matter_id,filename,kind,extracted_text,source_hash,byte_size,mime_type,storage_path,retention_class,integrity_status,metadata_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", (document_id, matter_id, filename, kind, encrypt_text(extracted_text), source_hash, byte_size, mime_type, storage_path, "حساس", "سليم", json.dumps(metadata or {}, ensure_ascii=False), stamp))
         db.execute("INSERT INTO custody_events(id,document_id,matter_id,event_type,actor,details,event_hash,created_at) VALUES(?,?,?,?,?,?,?,?)", (_id("custody"), document_id, matter_id, "ingested", "المستخدم الوحيد", json.dumps(payload, ensure_ascii=False), event_hash, stamp))
         if matter_id:
             audit(db, "matter", matter_id, "document_added", {"document_id": document_id, "filename": filename, "source_hash": source_hash, "event_hash": event_hash, "metadata": metadata or {}})
@@ -257,7 +304,7 @@ def get_document_texts(matter_id: str) -> Dict[str, str]:
     """
     with connect() as db:
         rows = db.execute("SELECT id, extracted_text FROM documents WHERE matter_id=? AND extracted_text != ''", (matter_id,)).fetchall()
-        return {row["id"]: row["extracted_text"] for row in rows}
+        return {row["id"]: decrypt_text(row["extracted_text"]) for row in rows}
 
 
 def verify_document(document_id: str, matter_id: Optional[str] = None) -> Dict[str, Any]:
@@ -272,7 +319,7 @@ def verify_document(document_id: str, matter_id: Optional[str] = None) -> Dict[s
     if not path or not os.path.isfile(path):
         return {"document_id": document_id, "status": "غير قابل للتحقق", "reason": "الأصل الثنائي غير محفوظ", "expected_hash": doc["source_hash"], "verified": False}
     with open(path, "rb") as blob:
-        actual = hashlib.sha256(blob.read()).hexdigest()
+        actual = hashlib.sha256(decrypt_bytes(blob.read())).hexdigest()
     verified = actual == doc["source_hash"]
     return {"document_id": document_id, "status": "سليم" if verified else "متغير", "expected_hash": doc["source_hash"], "actual_hash": actual, "verified": verified}
 
@@ -288,7 +335,7 @@ def build_backup_archive() -> str:
                 for filename in filenames:
                     path = os.path.join(root, filename)
                     archive.write(path, os.path.join("document_blobs", filename))
-        manifest = {"created_at": now(), "database": "workspace.sqlite3", "blob_directory": "document_blobs", "warning": "الأرشيف ليس مشفرًا تلقائيًا؛ خزنه داخل حاوية مشفرة ولا تشاركه."}
+        manifest = {"created_at": now(), "database": "workspace.sqlite3", "blob_directory": "document_blobs", "encryption": "ملفات المستندات والنصوص مشفرة بمفتاح FULAW_STORAGE_KEY أو .storage.key؛ لا ترفع المفتاح إلى GitHub."}
         archive.writestr("BACKUP_MANIFEST.json", json.dumps(manifest, ensure_ascii=False, indent=2))
     return archive_path
 

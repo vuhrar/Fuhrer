@@ -23,6 +23,7 @@ import file_processing
 import document_inspection_engine
 import hidden_rights_engine
 import official_source_sync
+import legal_library
 import workspace_store
 import reporting
 import case_package
@@ -647,7 +648,9 @@ async def analyze(request: AnalyzeRequest, _: None = Depends(require_access)):
 
 @app.post("/api/law-search")
 async def law_search(request: SearchRequest, _: None = Depends(require_access)):
-    return {"ok": True, "results": search_with_sources(request.query, request.max_results)}
+    official = search_with_sources(request.query, request.max_results)
+    user_sources = legal_library.search(request.query, request.max_results)
+    return {"ok": True, "results": sorted(official + user_sources, key=lambda row: row.get("score", 0), reverse=True)[:request.max_results], "official_count": len(official), "user_library_count": len(user_sources)}
 
 
 @app.get("/api/procedure/{step_key}/requirements")
@@ -657,7 +660,33 @@ async def procedure_requirements_endpoint(step_key: str, _: None = Depends(requi
 
 @app.get("/api/legal/sources")
 async def legal_sources(_: None = Depends(require_access)):
-    return {"ok": True, "sources": OFFICIAL_SOURCES}
+    return {"ok": True, "sources": OFFICIAL_SOURCES, "user_library": legal_library.list_sources()}
+
+
+@app.get("/api/legal/library")
+async def legal_library_list(_: None = Depends(require_access)):
+    return {"ok": True, "sources": legal_library.list_sources()}
+
+
+@app.post("/api/legal/library/upload")
+async def legal_library_upload(
+    file: UploadFile = File(...),
+    title: str = Form(default=""),
+    authority: str = Form(default=""),
+    status: str = Form(default="يحتاج تحقق"),
+    notes: str = Form(default=""),
+    _: None = Depends(require_access),
+):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="اسم ملف غير صالح")
+    raw = await file.read()
+    if len(raw) > MAX_FILE_BYTES:
+        raise HTTPException(status_code=413, detail=f"الملف يتجاوز الحد المسموح {MAX_FILE_BYTES} بايت")
+    try:
+        source = legal_library.add_source(file.filename, raw, title=title, authority=authority, status=status, notes=notes)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return {"ok": True, "source": source, "message": "تمت إضافة النظام إلى مكتبة المستخدم. لا يُعد مصدرًا رسميًا نافذًا إلا بعد المراجعة والتحقق."}
 
 
 @app.get("/api/legal/sync-status")
@@ -831,7 +860,7 @@ async def document_inspections(matter_id: str, _: None = Depends(require_access)
         if not path or not os.path.isfile(path):
             continue
         with open(path, "rb") as blob:
-            item = io.BytesIO(blob.read())
+            item = io.BytesIO(workspace_store.decrypt_bytes(blob.read()))
         item.name = document.get("filename", "document")
         objects.append(item)
     batch = document_inspection_engine.inspect_batch(objects)
