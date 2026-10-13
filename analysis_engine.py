@@ -5,7 +5,7 @@
 
 from typing import List, Dict, Callable, Optional
 from legal_database import get_legal_database
-from legal_tools_advanced import legal_search, legal_classifier
+from legal_tools import legal_search, legal_classifier
 
 ANALYSIS_AXES = [
     {"id": "procedural", "name": "الإجرائي", "icon": "📋",

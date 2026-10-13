@@ -6,7 +6,7 @@ import hashlib
 import hmac
 import io
 import os
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
@@ -20,10 +20,16 @@ load_dotenv()
 
 import ai_engine
 import file_processing
+import document_inspection_engine
+import hidden_rights_engine
 import workspace_store
 import reporting
 import case_package
 import matter_intelligence as intelligence_engine
+import advanced_dispute_engine
+import legal_case_theory
+from evidence_fusion import fuse_text_with_evidence
+from repository import repository_from_env
 from legal_tools import legal_classifier, info_extractor, entitlement_calculator, evidence_scorer, lawsuit_drafter, litigation_timeline, deadline_engine, termination_assessment, full_entitlements_worksheet
 from amicable_settlement import AmicableSettlementRequestDrafter, SettlementOfferReviewer, pre_signature_checklist, DISPUTE_SUBJECT_CATEGORIES
 
@@ -39,6 +45,7 @@ MAX_FILE_BYTES = int(os.getenv("MAX_FILE_BYTES", str(25 * 1024 * 1024)))
 
 app = FastAPI(title="Führer Personal Legal PWA", version="3.0.0", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=os.path.join(WEB_DIR, "static")), name="static")
+legal_repository = repository_from_env()
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -268,6 +275,24 @@ class EntitlementsWorksheetRequest(BaseModel):
     overtime_hourly_rate: Optional[float] = Field(default=None, ge=0)
 
 
+class RightsAnalysisRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=100000)
+    right_concepts: Dict[str, List[str]] = Field(default_factory=dict)
+    semantic_matches: List[Dict[str, Any]] = Field(default_factory=list)
+    table_entities: List[Dict[str, Any]] = Field(default_factory=list)
+    claim_keys: List[str] = Field(default_factory=list)
+    right_catalog: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+    document_id: Optional[str] = None
+    filename: Optional[str] = None
+    page: Optional[int] = Field(default=None, ge=1)
+
+
+class RightReviewRequest(BaseModel):
+    discovered_right_id: str = Field(min_length=2, max_length=120)
+    decision: str = Field(min_length=2, max_length=100)
+    note: str = Field(default="", max_length=2000)
+
+
 async def require_access(x_app_token: Optional[str] = Header(default=None)) -> None:
     if not APP_TOKEN:
         raise HTTPException(status_code=503, detail="APP_ACCESS_TOKEN غير مضبوط على الخادم")
@@ -332,6 +357,103 @@ async def get_matter(matter_id: str, _: None = Depends(require_access)):
         return {"ok": True, "matter": workspace_store.get_matter(matter_id)}
     except KeyError:
         raise HTTPException(status_code=404, detail="القضية غير موجودة")
+
+
+@app.get("/api/roles")
+async def roles(_: None = Depends(require_access)):
+    return {"ok": True, "roles": advanced_dispute_engine.role_catalog()}
+
+
+@app.get("/api/matters/{matter_id}/advanced-review")
+async def advanced_review(matter_id: str, role: str = "مستشار عمالي", _: None = Depends(require_access)):
+    try:
+        matter = workspace_store.get_matter(matter_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+    return {"ok": True, "review": advanced_dispute_engine.assess_matter(matter, role)}
+
+
+@app.get("/api/matters/{matter_id}/case-theory")
+async def case_theory(matter_id: str, role: str = "مستشار عمالي", _: None = Depends(require_access)):
+    try:
+        matter = workspace_store.get_matter(matter_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+    return {"ok": True, "theory": legal_case_theory.build_case_theory(matter, role)}
+
+
+@app.patch("/api/matters/{matter_id}/procedure/{step_key}")
+async def update_procedure_step(matter_id: str, step_key: str, request: Dict[str, Any], _: None = Depends(require_access)):
+    try:
+        return {"ok": True, "step": workspace_store.update_procedure_step(matter_id, step_key, request)}
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية أو المرحلة الإجرائية غير موجودة")
+
+
+@app.post("/api/matters/{matter_id}/rights/analyze")
+async def analyze_rights(matter_id: str, request: RightsAnalysisRequest, _: None = Depends(require_access)):
+    try:
+        workspace_store.get_matter(matter_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+    concepts = request.right_concepts or {"overtime": ["ساعات إضافية", "بعد الدوام"]}
+    analysis = fuse_text_with_evidence(
+        request.text, concepts, request.semantic_matches, request.table_entities,
+        document_id=request.document_id, filename=request.filename, page=request.page,
+        right_catalog=request.right_catalog, claim_keys=request.claim_keys,
+    )
+    persisted_statements = []
+    for item in analysis["statements"]:
+        persisted_statements.append(legal_repository.save_statement(
+            matter_id=matter_id, text=item["text"], speaker=item.get("speaker"),
+            polarity=item.get("polarity"), status=item.get("status"),
+            negation_cue=item.get("negation_cue"), quoted=item.get("quoted", False),
+            document_id=item.get("document_id") or request.document_id,
+            page_number=item.get("page") or request.page, start_offset=item.get("start"),
+            end_offset=item.get("end"), confidence=item.get("confidence"),
+        ))
+    persisted_findings = []
+    for finding in analysis["findings"]:
+        saved = legal_repository.save_right_finding(matter_id=matter_id, finding=finding)
+        for trace in finding.get("source_trace", []):
+            legal_repository.save_right_trigger(
+                discovered_right_id=saved["id"], trigger_type=trace.get("trigger_type", "analysis"),
+                excerpt=trace.get("excerpt", "") or "", page_number=trace.get("page"),
+                source_quality=trace.get("source_quality"),
+            )
+        persisted_findings.append(saved)
+    return {"ok": True, "analysis": analysis, "persisted": {"statements": persisted_statements, "findings": persisted_findings}}
+
+
+@app.get("/api/matters/{matter_id}/repository-rights")
+async def repository_rights(matter_id: str, _: None = Depends(require_access)):
+    try:
+        workspace_store.get_matter(matter_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+    return {"ok": True, "rights": legal_repository.list_right_findings(matter_id), "decisions": legal_repository.list_review_decisions(matter_id)}
+
+
+@app.get("/api/matters/{matter_id}/legal-statements")
+async def repository_statements(matter_id: str, _: None = Depends(require_access)):
+    try:
+        workspace_store.get_matter(matter_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+    return {"ok": True, "statements": legal_repository.list_statements(matter_id)}
+
+
+@app.post("/api/matters/{matter_id}/right-review")
+async def review_right(matter_id: str, request: RightReviewRequest, _: None = Depends(require_access)):
+    try:
+        workspace_store.get_matter(matter_id)
+        decision = legal_repository.save_review_decision(
+            matter_id=matter_id, discovered_right_id=request.discovered_right_id,
+            decision=request.decision, note=request.note,
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية أو الحق المكتشف غير موجود")
+    return {"ok": True, "decision": decision}
 
 
 @app.get("/api/matters/{matter_id}/intelligence")
@@ -680,6 +802,37 @@ async def settlement_checklist_endpoint(_: None = Depends(require_access)):
     return {"ok": True, "checklist": pre_signature_checklist()}
 
 
+@app.get("/api/matters/{matter_id}/document-inspections")
+async def document_inspections(matter_id: str, _: None = Depends(require_access)):
+    try:
+        matter = workspace_store.get_matter(matter_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+    objects = []
+    for document in matter.get("documents", []):
+        path = document.get("storage_path")
+        if not path or not os.path.isfile(path):
+            continue
+        with open(path, "rb") as blob:
+            item = io.BytesIO(blob.read())
+        item.name = document.get("filename", "document")
+        objects.append(item)
+    batch = document_inspection_engine.inspect_batch(objects)
+    return {"ok": True, "coverage": {key: batch.get(key) for key in ("documents_total", "documents_read", "documents_partial", "documents_unreadable", "documents_fully_inspected", "characters_scanned", "pages_scanned", "unsupported_extensions", "manual_review_required", "status")}, "inspections": batch.get("results", [])}
+
+
+@app.get("/api/matters/{matter_id}/discovered-rights")
+async def discovered_rights(matter_id: str, _: None = Depends(require_access)):
+    try:
+        matter = workspace_store.get_matter(matter_id)
+        texts = workspace_store.get_document_texts(matter_id)
+        for document in matter.get("documents", []):
+            document["extracted_text"] = texts.get(document.get("id"), "")
+    except KeyError:
+        raise HTTPException(status_code=404, detail="القضية غير موجودة")
+    return {"ok": True, "rights": hidden_rights_engine.discover(matter).get("findings", [])}
+
+
 @app.post("/api/upload")
 async def upload(files: List[UploadFile] = File(...), matter_id: Optional[str] = Form(default=None), _: None = Depends(require_access)):
     if len(files) > MAX_FILES:
@@ -698,6 +851,8 @@ async def upload(files: List[UploadFile] = File(...), matter_id: Optional[str] =
         file_metadata[upload.filename] = {"mime_type": upload.content_type or "application/octet-stream", "byte_size": len(data)}
     batch = file_processing.process_multiple_files(file_objects)
     saved_documents = []
+    saved_inspections = []
+    rights_discovery = {"findings": [], "undisclosed_count": 0}
     if matter_id:
         try:
             for item in batch.get("results", []):
@@ -708,6 +863,18 @@ async def upload(files: List[UploadFile] = File(...), matter_id: Optional[str] =
                     raw_bytes = original.getvalue() if original is not None else text.encode("utf-8")
                     metadata = file_metadata.get(filename, {})
                     saved_documents.append(workspace_store.add_document(matter_id, filename, "مرفوع", text, hashlib.sha256(raw_bytes).hexdigest(), byte_size=metadata.get("byte_size", len(raw_bytes)), mime_type=metadata.get("mime_type", "application/octet-stream"), metadata=item.get("signals", {}), raw_bytes=raw_bytes))
+            inspection_objects = []
+            for source in file_objects:
+                inspection = io.BytesIO(source.getvalue())
+                inspection.name = getattr(source, "name", "document")
+                inspection_objects.append(inspection)
+            inspected = document_inspection_engine.inspect_batch(inspection_objects)
+            saved_inspections = inspected.get("results", [])
+            analyzed_matter = workspace_store.get_matter(matter_id)
+            texts = workspace_store.get_document_texts(matter_id)
+            for document in analyzed_matter.get("documents", []):
+                document["extracted_text"] = texts.get(document.get("id"), "")
+            rights_discovery = hidden_rights_engine.discover(analyzed_matter)
         except KeyError:
             raise HTTPException(status_code=404, detail="القضية غير موجودة")
     return {
@@ -716,4 +883,7 @@ async def upload(files: List[UploadFile] = File(...), matter_id: Optional[str] =
         "results": batch["results"],
         "texts": batch["texts"],
         "saved_documents": saved_documents,
+        "saved_inspections": saved_inspections,
+        "inspection_coverage": {key: value for key, value in batch.items() if key in {"documents_total", "documents_read", "documents_partial", "documents_unreadable", "documents_fully_inspected", "characters_scanned", "pages_scanned", "unsupported_extensions", "manual_review_required", "status"}},
+        "rights_discovery": rights_discovery,
     }

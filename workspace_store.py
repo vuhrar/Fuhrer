@@ -18,6 +18,19 @@ BLOB_DIR = os.path.join(DATA_DIR, "document_blobs")
 os.makedirs(BLOB_DIR, exist_ok=True)
 DB_PATH = os.path.join(DATA_DIR, "workspace.sqlite3")
 
+PROCEDURE_STEPS = [
+    ("intake", "استقبال وتثبيت النطاق"),
+    ("evidence", "جمع الأدلة وفحصها"),
+    ("legal_review", "المراجعة القانونية"),
+    ("amicable_settlement", "التسوية الودية"),
+    ("referral", "الإحالة"),
+    ("lawsuit", "تجهيز الدعوى"),
+    ("hearings", "الجلسات"),
+    ("judgment", "الحكم أو القرار"),
+    ("enforcement", "التنفيذ"),
+    ("closed", "إغلاق الملف"),
+]
+
 
 def now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -103,11 +116,20 @@ def init_db() -> None:
           status TEXT NOT NULL DEFAULT 'مفتوح', source TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
           FOREIGN KEY(matter_id) REFERENCES matters(id) ON DELETE CASCADE
         );
+        CREATE TABLE IF NOT EXISTS procedure_steps (
+          id TEXT PRIMARY KEY, matter_id TEXT NOT NULL, step_key TEXT NOT NULL,
+          title TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'لم تبدأ',
+          notes TEXT NOT NULL DEFAULT '', started_at TEXT, completed_at TEXT,
+          created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+          UNIQUE(matter_id, step_key),
+          FOREIGN KEY(matter_id) REFERENCES matters(id) ON DELETE CASCADE
+        );
         CREATE INDEX IF NOT EXISTS idx_facts_matter_date ON facts(matter_id, event_date);
         CREATE INDEX IF NOT EXISTS idx_claims_matter ON claims(matter_id);
         CREATE INDEX IF NOT EXISTS idx_deadlines_matter_due ON deadlines(matter_id, due_date);
         CREATE INDEX IF NOT EXISTS idx_tasks_matter ON tasks(matter_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_date);
+        CREATE INDEX IF NOT EXISTS idx_procedure_matter ON procedure_steps(matter_id, id);
         CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_events(entity_type, entity_id);
         CREATE INDEX IF NOT EXISTS idx_custody_document ON custody_events(document_id, created_at);
         """)
@@ -122,6 +144,10 @@ def create_matter(payload: Dict[str, Any]) -> Dict[str, Any]:
     values = (matter_id, payload["title"].strip(), payload.get("matter_type", "عام"), payload.get("status", "مفتوحة"), payload.get("priority", "متوسطة"), payload.get("client_name", ""), payload.get("opposing_party", ""), payload.get("jurisdiction", ""), payload.get("description", ""), stamp, stamp)
     with connect() as db:
         db.execute("INSERT INTO matters VALUES(?,?,?,?,?,?,?,?,?,?,?)", values)
+        db.executemany(
+            "INSERT INTO procedure_steps(id,matter_id,step_key,title,status,notes,started_at,completed_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
+            [(_id("step"), matter_id, key, title, "لم تبدأ", "", None, None, stamp, stamp) for key, title in PROCEDURE_STEPS],
+        )
         audit(db, "matter", matter_id, "created", {"title": values[1]})
     return get_matter(matter_id)
 
@@ -149,6 +175,8 @@ def get_matter(matter_id: str) -> Dict[str, Any]:
         result["claims"] = [dict(x) for x in db.execute("SELECT * FROM claims WHERE matter_id=? ORDER BY created_at", (matter_id,)).fetchall()]
         result["claim_evidence"] = [dict(x) for x in db.execute("SELECT ce.*, c.title AS claim_title, d.filename FROM claim_evidence ce JOIN claims c ON c.id=ce.claim_id JOIN documents d ON d.id=ce.document_id WHERE ce.matter_id=? ORDER BY ce.created_at", (matter_id,)).fetchall()]
         result["deadlines"] = [dict(x) for x in db.execute("SELECT * FROM deadlines WHERE matter_id=? ORDER BY due_date IS NULL, due_date", (matter_id,)).fetchall()]
+        order_sql = "CASE step_key " + " ".join(f"WHEN '{key}' THEN {index}" for index, (key, _) in enumerate(PROCEDURE_STEPS)) + " ELSE 999 END"
+        result["procedure_steps"] = [dict(x) for x in db.execute(f"SELECT * FROM procedure_steps WHERE matter_id=? ORDER BY {order_sql}", (matter_id,)).fetchall()]
         result["audit"] = [dict(x) for x in db.execute("SELECT * FROM audit_events WHERE entity_id=? ORDER BY created_at DESC LIMIT 100", (matter_id,)).fetchall()]
         return result
 
@@ -331,3 +359,27 @@ def add_deadline(matter_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         db.execute("INSERT INTO deadlines VALUES(?,?,?,?,?,?,?,?)", row)
         audit(db, "matter", matter_id, "deadline_added", {"deadline_id": deadline_id})
     return get_matter(matter_id)
+
+
+def update_procedure_step(matter_id: str, step_key: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    allowed = {key: payload[key] for key in ("status", "notes") if key in payload}
+    if step_key not in {key for key, _ in PROCEDURE_STEPS}:
+        raise KeyError(step_key)
+    stamp = now()
+    with connect() as db:
+        _ensure_matter(db, matter_id)
+        row = db.execute("SELECT id FROM procedure_steps WHERE matter_id=? AND step_key=?", (matter_id, step_key)).fetchone()
+        if not row:
+            raise KeyError(step_key)
+        status = allowed.get("status")
+        if status == "جارية":
+            allowed["started_at"] = stamp
+        if status == "مكتملة":
+            allowed["completed_at"] = stamp
+        if not allowed:
+            return get_matter(matter_id)["procedure_steps"]
+        fields = ", ".join(f"{key}=?" for key in allowed)
+        db.execute(f"UPDATE procedure_steps SET {fields}, updated_at=? WHERE matter_id=? AND step_key=?", [*allowed.values(), stamp, matter_id, step_key])
+        audit(db, "matter", matter_id, "procedure_step_updated", {"step_key": step_key, **allowed})
+        updated = db.execute("SELECT * FROM procedure_steps WHERE matter_id=? AND step_key=?", (matter_id, step_key)).fetchone()
+    return dict(updated)
