@@ -73,17 +73,26 @@ _PRESETS_RAW: List[Dict] = [
         "description": "نموذج Mixtral عبر Groq — نافذة سياق كبيرة"
     },
     # --- Anthropic Claude ---
+    # ← إصلاح المرحلة صفر: معرّفات النماذج كانت قديمة/غير صحيحة (claude-sonnet-4-6،
+    # claude-haiku-4-0) وقد تفشل نداءات API بخطأ "model not found". حُدّثت للمعرّفات
+    # الحالية. راجع https://docs.claude.com/en/docs/about-claude/models دوريًا فالمعرّفات تتغيّر.
+    {
+        "name": "Claude Opus 5 🏛️",
+        "url": "https://api.anthropic.com/v1/messages",
+        "model": "claude-opus-5", "fmt": "anthropic", "free": False, "requires_key": True,
+        "description": "الأعمق تحليلًا واستدلالًا — للقضايا المعقدة أو المطالبات كبيرة القيمة"
+    },
     {
         "name": "Claude Sonnet 4 🎯",
         "url": "https://api.anthropic.com/v1/messages",
-        "model": "claude-sonnet-4-6", "fmt": "anthropic", "free": False, "requires_key": True,
-        "description": "الأفضل للتحليل القانوني المعمق"
+        "model": "claude-sonnet-5", "fmt": "anthropic", "free": False, "requires_key": True,
+        "description": "الأفضل للتحليل القانوني المعمق بتوازن سرعة/تكلفة — الافتراضي الموصى به"
     },
     {
         "name": "Claude Haiku 4 ⚡",
         "url": "https://api.anthropic.com/v1/messages",
-        "model": "claude-haiku-4-0", "fmt": "anthropic", "free": False, "requires_key": True,
-        "description": "سريع واقتصادي من Anthropic"
+        "model": "claude-haiku-4-5-20251001", "fmt": "anthropic", "free": False, "requires_key": True,
+        "description": "سريع واقتصادي من Anthropic — لتصنيف واستخراج المهام البسيطة لا التحليل النهائي"
     },
     # --- OpenAI ---
     {

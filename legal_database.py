@@ -117,12 +117,16 @@ def load_extended_knowledge():
                 for sys_idx, system in enumerate(data):
                     sys_name = system.get("system", "نظام عام")
                     for art_idx, article in enumerate(system.get("articles", [])):
+                        # ← إصلاح: "article" كان معرّفًا صناعيًا (pdf_3_12) عديم المعنى
+                        # كاستشهاد؛ أصبح رقم المادة الحقيقي عند توفره من المحلل الجديد.
+                        number = article.get("article_number")
                         flat_data.append({
-                            "article": f"pdf_{sys_idx}_{art_idx}",
+                            "article": str(number) if number is not None else f"pdf_{sys_idx}_{art_idx}",
                             "title": article.get("id", "مادة"),
                             "category": sys_name,
                             "text": article.get("text", ""),
-                            "keywords": [sys_name, article.get("id", "")]
+                            "keywords": [sys_name, article.get("id", "")],
+                            "needs_verification": article.get("needs_verification", False),
                         })
                 return flat_data
         except:
@@ -160,6 +164,22 @@ class LegalDatabase:
             if art.get("article") == str(article_number):
                 return art
         return None
+
+    def get_all_articles(self) -> List[Dict]:
+        """كل المواد (منسّقة يدويًا + موسّعة مدموجة معًا) — للاستخدام العام حيث لا يهم تمييز مستوى الثقة."""
+        return list(self._articles)
+
+    def get_curated_articles(self) -> List[Dict]:
+        """
+        ← جديد. المواد الـ25 المُدخلة يدويًا والمُراجَعة فقط، بلا أي دمج مع
+        القاعدة الموسّعة المستخرجة آليًا. اكتُشف أن get_all_articles() كانت
+        تُستخدم في semantic_search.py على أساس أنها "عالية الثقة حصرًا"،
+        بينما هي فعليًا تضم أيضًا كل مادة مستخرجة آليًا من law_text.txt —
+        بما في ذلك مواد من أنظمة لا علاقة لها بالعمل إطلاقًا (التصديق
+        الرقمي، حيازة الأدوية المخدرة...) معروضة بنفس درجة الثقة. هذه
+        الدالة تُعيد فقط القائمة اليدوية الأصلية _LABOR_LAW_ARTICLES.
+        """
+        return list(_LABOR_LAW_ARTICLES)
 
     def get_all_categories(self) -> List[str]:
         return sorted(set(a.get("category", "عام") for a in self._articles))

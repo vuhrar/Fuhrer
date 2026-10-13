@@ -23,19 +23,6 @@ def now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-PROCEDURE_STEPS = [
-    ("intake", "استيعاب النزاع وتحديد النطاق"),
-    ("evidence", "جمع الأدلة وفحصها وربطها بالوقائع"),
-    ("legal_review", "البحث والتكييف القانوني والتحقق من المصادر"),
-    ("amicable_settlement", "التسوية الودية وتوثيق الجلسات والنتيجة"),
-    ("referral", "محضر التعذر أو الإحالة للمرحلة التالية"),
-    ("lawsuit", "تجهيز صحيفة الدعوى والمرفقات"),
-    ("hearings", "إدارة الجلسات والردود والمذكرات"),
-    ("judgment", "الحكم وقراءة أسبابه ومواعيد الاعتراض"),
-    ("enforcement", "التنفيذ أو التسوية النهائية"),
-    ("closed", "إغلاق الملف وأرشفة السجل"),
-]
-
 def _id(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex[:12]}"
 
@@ -116,33 +103,6 @@ def init_db() -> None:
           status TEXT NOT NULL DEFAULT 'مفتوح', source TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
           FOREIGN KEY(matter_id) REFERENCES matters(id) ON DELETE CASCADE
         );
-        CREATE TABLE IF NOT EXISTS procedure_steps (
-          id TEXT PRIMARY KEY, matter_id TEXT NOT NULL, step_key TEXT NOT NULL,
-          title TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'غير مكتملة',
-          started_at TEXT, completed_at TEXT, notes TEXT NOT NULL DEFAULT '',
-          created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
-          UNIQUE(matter_id, step_key), FOREIGN KEY(matter_id) REFERENCES matters(id) ON DELETE CASCADE
-        );
-        CREATE TABLE IF NOT EXISTS document_inspections (
-          id TEXT PRIMARY KEY, document_id TEXT NOT NULL, matter_id TEXT,
-          inspection_status TEXT NOT NULL, readable INTEGER NOT NULL DEFAULT 0,
-          full_text_available INTEGER NOT NULL DEFAULT 0, pages INTEGER NOT NULL DEFAULT 0,
-          characters_scanned INTEGER NOT NULL DEFAULT 0, words_approx INTEGER NOT NULL DEFAULT 0,
-          signals_json TEXT NOT NULL DEFAULT '{}', coverage_json TEXT NOT NULL DEFAULT '{}',
-          errors_json TEXT NOT NULL DEFAULT '[]', inspected_at TEXT NOT NULL,
-          FOREIGN KEY(document_id) REFERENCES documents(id) ON DELETE CASCADE,
-          FOREIGN KEY(matter_id) REFERENCES matters(id) ON DELETE CASCADE
-        );
-        CREATE TABLE IF NOT EXISTS discovered_rights (
-          id TEXT PRIMARY KEY, matter_id TEXT NOT NULL, right_key TEXT NOT NULL,
-          label TEXT NOT NULL, status TEXT NOT NULL, trigger_count INTEGER NOT NULL DEFAULT 0,
-          reason TEXT NOT NULL DEFAULT '', elements_json TEXT NOT NULL DEFAULT '[]',
-          evidence_json TEXT NOT NULL DEFAULT '[]', missing_json TEXT NOT NULL DEFAULT '[]',
-          triggers_json TEXT NOT NULL DEFAULT '[]', source_refs_json TEXT NOT NULL DEFAULT '[]',
-          human_review_required INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL, UNIQUE(matter_id, right_key),
-          FOREIGN KEY(matter_id) REFERENCES matters(id) ON DELETE CASCADE
-        );
         CREATE INDEX IF NOT EXISTS idx_facts_matter_date ON facts(matter_id, event_date);
         CREATE INDEX IF NOT EXISTS idx_claims_matter ON claims(matter_id);
         CREATE INDEX IF NOT EXISTS idx_deadlines_matter_due ON deadlines(matter_id, due_date);
@@ -150,8 +110,6 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_date);
         CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_events(entity_type, entity_id);
         CREATE INDEX IF NOT EXISTS idx_custody_document ON custody_events(document_id, created_at);
-        CREATE INDEX IF NOT EXISTS idx_document_inspections_matter ON document_inspections(matter_id, inspected_at);
-        CREATE INDEX IF NOT EXISTS idx_discovered_rights_matter ON discovered_rights(matter_id, status);
         """)
 
 
@@ -164,9 +122,7 @@ def create_matter(payload: Dict[str, Any]) -> Dict[str, Any]:
     values = (matter_id, payload["title"].strip(), payload.get("matter_type", "عام"), payload.get("status", "مفتوحة"), payload.get("priority", "متوسطة"), payload.get("client_name", ""), payload.get("opposing_party", ""), payload.get("jurisdiction", ""), payload.get("description", ""), stamp, stamp)
     with connect() as db:
         db.execute("INSERT INTO matters VALUES(?,?,?,?,?,?,?,?,?,?,?)", values)
-        steps = [(f"step_{uuid.uuid4().hex[:12]}", matter_id, key, title, "جارية" if index == 0 else "غير مكتملة", stamp if index == 0 else None, None, "", stamp, stamp) for index, (key, title) in enumerate(PROCEDURE_STEPS)]
-        db.executemany("INSERT INTO procedure_steps VALUES(?,?,?,?,?,?,?,?,?,?)", steps)
-        audit(db, "matter", matter_id, "created", {"title": values[1], "procedure_steps": len(steps)})
+        audit(db, "matter", matter_id, "created", {"title": values[1]})
     return get_matter(matter_id)
 
 
@@ -186,7 +142,7 @@ def get_matter(matter_id: str) -> Dict[str, Any]:
             raise KeyError(matter_id)
         result = dict(row)
         result["tasks"] = [dict(x) for x in db.execute("SELECT * FROM tasks WHERE matter_id=? ORDER BY due_date IS NULL, due_date", (matter_id,)).fetchall()]
-        result["documents"] = [dict(x) for x in db.execute("SELECT id,matter_id,filename,kind,extracted_text,source_hash,byte_size,mime_type,storage_path,retention_class,integrity_status,metadata_json,created_at FROM documents WHERE matter_id=? ORDER BY created_at DESC", (matter_id,)).fetchall()]
+        result["documents"] = [dict(x) for x in db.execute("SELECT id,matter_id,filename,kind,source_hash,byte_size,mime_type,storage_path,retention_class,integrity_status,metadata_json,created_at FROM documents WHERE matter_id=? ORDER BY created_at DESC", (matter_id,)).fetchall()]
         result["custody_events"] = [dict(x) for x in db.execute("SELECT * FROM custody_events WHERE matter_id=? ORDER BY created_at", (matter_id,)).fetchall()]
         result["parties"] = [dict(x) for x in db.execute("SELECT * FROM parties WHERE matter_id=? ORDER BY created_at", (matter_id,)).fetchall()]
         result["facts"] = [dict(x) for x in db.execute("SELECT * FROM facts WHERE matter_id=? ORDER BY event_date IS NULL, event_date, created_at", (matter_id,)).fetchall()]
@@ -194,9 +150,6 @@ def get_matter(matter_id: str) -> Dict[str, Any]:
         result["claim_evidence"] = [dict(x) for x in db.execute("SELECT ce.*, c.title AS claim_title, d.filename FROM claim_evidence ce JOIN claims c ON c.id=ce.claim_id JOIN documents d ON d.id=ce.document_id WHERE ce.matter_id=? ORDER BY ce.created_at", (matter_id,)).fetchall()]
         result["deadlines"] = [dict(x) for x in db.execute("SELECT * FROM deadlines WHERE matter_id=? ORDER BY due_date IS NULL, due_date", (matter_id,)).fetchall()]
         result["audit"] = [dict(x) for x in db.execute("SELECT * FROM audit_events WHERE entity_id=? ORDER BY created_at DESC LIMIT 100", (matter_id,)).fetchall()]
-        result["procedure_steps"] = [dict(x) for x in db.execute("SELECT * FROM procedure_steps WHERE matter_id=? ORDER BY rowid", (matter_id,)).fetchall()]
-        result["document_inspections"] = [dict(x) for x in db.execute("SELECT * FROM document_inspections WHERE matter_id=? ORDER BY inspected_at DESC", (matter_id,)).fetchall()]
-        result["discovered_rights"] = [dict(x) for x in db.execute("SELECT * FROM discovered_rights WHERE matter_id=? ORDER BY updated_at DESC", (matter_id,)).fetchall()]
         return result
 
 
@@ -213,23 +166,6 @@ def update_matter(matter_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         audit(db, "matter", matter_id, "updated", {"fields": list(allowed)})
     return get_matter(matter_id)
 
-
-def update_procedure_step(matter_id: str, step_key: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-    allowed = {key: payload[key] for key in ("status", "notes") if key in payload}
-    stamp = now()
-    if payload.get("status") == "جارية": allowed.update(started_at=stamp, completed_at=None)
-    elif payload.get("status") == "مكتملة": allowed.update(completed_at=stamp, started_at=stamp)
-    if not allowed:
-        allowed = {}
-    with connect() as db:
-        row = db.execute("SELECT 1 FROM procedure_steps WHERE matter_id=? AND step_key=?", (matter_id, step_key)).fetchone()
-        if not row: raise KeyError(step_key)
-        if allowed:
-            fields = ", ".join(f"{k}=?" for k in allowed)
-            db.execute(f"UPDATE procedure_steps SET {fields}, updated_at=? WHERE matter_id=? AND step_key=?", [*allowed.values(), stamp, matter_id, step_key])
-        db.execute("UPDATE matters SET updated_at=? WHERE id=?", (stamp, matter_id))
-        audit(db, "procedure_step", f"{matter_id}:{step_key}", "updated", {"status": payload.get("status")})
-        return dict(db.execute("SELECT * FROM procedure_steps WHERE matter_id=? AND step_key=?", (matter_id, step_key)).fetchone())
 
 def create_task(matter_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     task_id, stamp = _id("task"), now()
@@ -281,37 +217,19 @@ def add_document(matter_id: Optional[str], filename: str, kind: str, extracted_t
     return {"id": document_id, "matter_id": matter_id, "filename": filename, "kind": kind, "source_hash": source_hash, "byte_size": byte_size, "mime_type": mime_type, "storage_path": storage_path, "integrity_status": "سليم", "metadata": metadata or {}, "created_at": stamp, "custody_event_hash": event_hash}
 
 
-def save_document_inspection(document_id: str, matter_id: str, inspection: Dict[str, Any]) -> Dict[str, Any]:
-    inspection_id, stamp = _id("inspection"), now()
+def get_document_texts(matter_id: str) -> Dict[str, str]:
+    """
+    ← جديد (المرحلة 2). get_matter() تستبعد عمدًا عمود extracted_text من
+    استعلامها (سطر بناء result["documents"] أعلاه) لتبقى خفيفة لعرض اللوحة
+    والقوائم — وهذا صحيح لذلك الغرض. لكن اكتُشف أن هذا يعني أن أي تحليل
+    (matter_intelligence.py) لم يكن يرى أبدًا محتوى المستندات فعليًا، فقط
+    بياناتها الوصفية (الاسم، البصمة، حالة السلامة) — أي لا يوجد فعليًا أي
+    "كشف أثر قانوني" ممكن من المستندات المرفوعة قبل هذه الدالة. تُستخدم
+    فقط عند طلب تحليل عميق صراحة، لا في كل تحميل لصفحة القضية.
+    """
     with connect() as db:
-        _ensure_matter(db, matter_id)
-        db.execute("INSERT INTO document_inspections(id,document_id,matter_id,inspection_status,readable,full_text_available,pages,characters_scanned,words_approx,signals_json,coverage_json,errors_json,inspected_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", (inspection_id, document_id, matter_id, inspection.get("inspection_status", "فشل الفحص"), int(bool(inspection.get("readable"))), int(bool(inspection.get("full_text_available"))), int(inspection.get("pages", 0) or 0), int(inspection.get("characters_scanned", 0) or 0), int(inspection.get("words_approx", 0) or 0), json.dumps(inspection.get("signals", {}), ensure_ascii=False), json.dumps({"keyword_occurrences": inspection.get("keyword_occurrences", {}), "manual_review_required": inspection.get("manual_review_required", True), "page_records": inspection.get("page_records", []), "tables": inspection.get("tables", []), "extraction_method": inspection.get("extraction_method", ""), "ocr_confidence": inspection.get("ocr_confidence")}, ensure_ascii=False), json.dumps(inspection.get("errors", []), ensure_ascii=False), stamp))
-        audit(db, "matter", matter_id, "document_inspected", {"document_id": document_id, "inspection_id": inspection_id, "status": inspection.get("inspection_status")})
-    return {"id": inspection_id, "document_id": document_id, "matter_id": matter_id, "inspection_status": inspection.get("inspection_status", "فشل الفحص"), "readable": bool(inspection.get("readable")), "manual_review_required": bool(inspection.get("manual_review_required", True)), "inspected_at": stamp}
-
-
-def replace_discovered_rights(matter_id: str, findings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    stamp = now()
-    saved = []
-    with connect() as db:
-        _ensure_matter(db, matter_id)
-        for item in findings:
-            right_id = _id("right")
-            values = (right_id, matter_id, item.get("right_key", "unknown"), item.get("label", "حق محتمل"), item.get("status", "يحتاج تحقق"), int(item.get("trigger_count", 0)), item.get("reason", ""), json.dumps(item.get("elements_to_verify", []), ensure_ascii=False), json.dumps(item.get("evidence_needed", []), ensure_ascii=False), json.dumps(item.get("missing_items", []), ensure_ascii=False), json.dumps(item.get("triggers", []), ensure_ascii=False), json.dumps(item.get("source_refs", []), ensure_ascii=False), int(bool(item.get("human_review_required", True))), stamp, stamp)
-            db.execute("INSERT INTO discovered_rights(id,matter_id,right_key,label,status,trigger_count,reason,elements_json,evidence_json,missing_json,triggers_json,source_refs_json,human_review_required,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(matter_id,right_key) DO UPDATE SET label=excluded.label,status=excluded.status,trigger_count=excluded.trigger_count,reason=excluded.reason,elements_json=excluded.elements_json,evidence_json=excluded.evidence_json,missing_json=excluded.missing_json,triggers_json=excluded.triggers_json,source_refs_json=excluded.source_refs_json,human_review_required=excluded.human_review_required,updated_at=excluded.updated_at", values)
-            saved.append({"right_key": item.get("right_key"), "label": item.get("label"), "status": item.get("status"), "trigger_count": item.get("trigger_count", 0), "reason": item.get("reason", ""), "triggers": item.get("triggers", []), "elements_to_verify": item.get("elements_to_verify", []), "evidence_needed": item.get("evidence_needed", []), "missing_items": item.get("missing_items", []), "human_review_required": True, "updated_at": stamp})
-        audit(db, "matter", matter_id, "hidden_rights_discovered", {"count": len(saved), "undisclosed_count": sum(x["status"] == "مؤشر حق غير مذكور" for x in saved)})
-    return saved
-
-
-def list_document_inspections(matter_id: str) -> List[Dict[str, Any]]:
-    with connect() as db:
-        return [dict(x) for x in db.execute("SELECT * FROM document_inspections WHERE matter_id=? ORDER BY inspected_at DESC", (matter_id,)).fetchall()]
-
-
-def list_discovered_rights(matter_id: str) -> List[Dict[str, Any]]:
-    with connect() as db:
-        return [dict(x) for x in db.execute("SELECT * FROM discovered_rights WHERE matter_id=? ORDER BY updated_at DESC", (matter_id,)).fetchall()]
+        rows = db.execute("SELECT id, extracted_text FROM documents WHERE matter_id=? AND extracted_text != ''", (matter_id,)).fetchall()
+        return {row["id"]: row["extracted_text"] for row in rows}
 
 
 def verify_document(document_id: str, matter_id: Optional[str] = None) -> Dict[str, Any]:

@@ -4,7 +4,8 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List
 
-from legal_tools_advanced import legal_search
+from legal_tools import legal_search, check_escalation
+from policies import policies
 
 OFFICIAL_SOURCES = [
     {
@@ -39,11 +40,12 @@ OFFICIAL_SOURCES = [
     },
     {
         "id": "hrsd_amicable_settlement_service",
-        "title": "التسوية الودية للخلافات العمالية",
+        "title": "التسوية الودية للخلافات العمالية — منصة تراضي",
+        "platform_name": "تراضي",  # ← مؤكَّد ببحث مباشر مستقل (المرحلة 5)؛ عُرفت سابقًا داخل منظومة الوزارة باسم "ودي"
         "publisher": "وزارة الموارد البشرية والتنمية الاجتماعية",
         "url": "https://www.hrsd.gov.sa/ministry-services/services/269970",
-        "version_note": "المرحلة الأولى؛ مدة الخدمة 21 يومًا؛ الإحالة بعد محضر التعذر وفق الإجراءات المعتمدة",
-        "published_or_verified": "صفحة رسمية محدثة 2026-08-18",
+        "version_note": "المرحلة الأولى؛ مدة الخدمة 21 يومًا؛ مجانية للعامل؛ الدخول عبر النفاذ الوطني الموحد أو أبشر؛ الإحالة بعد محضر التعذر وفق الإجراءات المعتمدة",
+        "published_or_verified": "صفحة رسمية محدثة 2026-08-18؛ تأكيد التسمية 2026-10",
         "status": "مرجع إجرائي",
     },
     {
@@ -65,16 +67,6 @@ PROCEDURE_REQUIREMENTS = {
 OBLIGATION_PATTERNS = [
     ("التزام صريح", re.compile(r"(?:يلتزم|يجب على|يتعين على|يتوجب على|على الطرف|لا يجوز|يحظر)\s+[^.؛\n]{5,220}")),
     ("حق أو استحقاق", re.compile(r"(?:يحق لـ|يستحق|للطرف|للعامل|لصاحب العمل)\s+[^.؛\n]{5,220}")),
-]
-
-LABOR_RISK_RULES = [
-    ("العلاقة العمالية والعقد", ["عقد العمل", "العلاقة العمالية", "مباشرة العمل", "المسمى الوظيفي"], "ينبغي تثبيت بداية العلاقة وطبيعة العقد والمسمى ومكان العمل وأي تعديلات مكتوبة."),
-    ("الأجر والاستحقاقات", ["الأجر", "الراتب", "الأجر المتأخر", "بدل", "استحقاق", "تحويل"], "يلزم مطابقة الأجر التعاقدي مع كشوف التحويل وكشوف حماية الأجور وأي بدلات أو خصومات."),
-    ("الدوام والحضور", ["الحضور", "الانقطاع", "ساعات العمل", "الدوام", "بصمة"], "يلزم تثبيت سجلات الحضور والغياب وأي إنذارات أو أعذار مرتبطة بها."),
-    ("الإنهاء والإشعار", ["الإنهاء", "الفصل", "إنهاء الخدمة", "إشعار", "استقالة"], "يلزم فحص سبب الإنهاء وصيغته وتاريخ نفاذه والإشعار والإجراءات والمستند المؤيد."),
-    ("التسوية الودية", ["التسوية الودية", "محضر تعذر", "جلسة التسوية", "مكتب العمل"], "وثّق رقم الطلب والجلسات والمراسلات ومحضر الاتفاق أو تعذر التسوية قبل الانتقال للمرحلة التالية."),
-    ("الإثبات وسلسلة المستندات", ["مستند", "رسالة", "بريد", "شهادة", "كشوف", "سجل"], "احفظ النسخة الأصلية وتاريخ الحصول عليها وهاش الملف واربطها بالواقعة أو الطلب الذي تثبته."),
-    ("الاختصاص والإجراء", ["المحكمة العمالية", "صحيفة دعوى", "الاختصاص", "الدعوى"], "تحقق من الجهة المختصة والمرحلة الإجرائية والمواعيد ومتطلبات الإحالة أو رفع الدعوى من المصدر الرسمي."),
 ]
 
 RISK_RULES = [
@@ -152,15 +144,11 @@ def extract_obligations(text: str) -> List[Dict[str, Any]]:
 
 def scan_risks(text: str) -> List[Dict[str, Any]]:
     clean = _normalize(text).lower()
-    labor_context = any(term in clean for term in ("عامل", "عمالي", "صاحب العمل", "راتب", "أجر", "العمل", "التسوية الودية", "الفصل"))
-    selected_rules = LABOR_RISK_RULES if labor_context else RISK_RULES
     risks = []
-    for name, terms, explanation in selected_rules:
+    for name, terms, explanation in RISK_RULES:
         present = any(term.lower() in clean for term in terms)
         if not present:
-            high = name in {"الإنهاء والإشعار", "الاختصاص والإجراء", "الأجر والاستحقاقات"} if labor_context else name in {"المدة والإنهاء", "المسؤولية", "القانون والاختصاص"}
-            action = f"استكمل بيانات {name} واربطها بمصدر أو مستند." if labor_context else f"أضف بندًا واضحًا يغطي {name} أو أكد سبب عدم انطباقه."
-            risks.append({"area": name, "severity": "مرتفع" if high else "متوسط", "finding": explanation, "status": "غير ظاهر في النص", "action": action})
+            risks.append({"area": name, "severity": "مرتفع" if name in {"المدة والإنهاء", "المسؤولية", "القانون والاختصاص"} else "متوسط", "finding": explanation, "status": "غير ظاهر في النص", "action": f"أضف بندًا واضحًا يغطي {name} أو أكد سبب عدم انطباقه."})
     if re.search(r"(?:غير محدود|دون حد|لا يتحمل أي مسؤولية|إعفاء كامل)", clean):
         risks.append({"area": "إعفاء أو مسؤولية غير متوازنة", "severity": "مرتفع", "finding": "يظهر نص قد يستبعد المسؤولية بصورة واسعة.", "status": "مؤشر يحتاج مراجعة", "action": "حدد الاستثناءات والحد المالي والضرر المباشر وغير المباشر."})
     return risks
@@ -175,7 +163,13 @@ def evidence_checklist(text: str) -> List[Dict[str, Any]]:
     return result
 
 
-def legal_review_package(text: str) -> Dict[str, Any]:
+def legal_review_package(text: str, claim_amount: float | None = None) -> Dict[str, Any]:
+    if not policies.is_in_scope(text):
+        # لا نرفض التحليل، لكن نُعلم صراحة أن النص قد يخرج عن نطاق تخصص المنصة
+        # (نظام العمل والخدمة المدنية والتأمينات) وفق system_use_policy.
+        out_of_scope_note = "قد يتضمن هذا النص مسائل خارج نطاق تخصص المنصة الحالي (أحوال شخصية / نزاعات تجارية بحتة / قضايا جنائية) — راجع جهة الاختصاص المناسبة."
+    else:
+        out_of_scope_note = None
     obligations = extract_obligations(text)
     risks = scan_risks(text)
     evidence = evidence_checklist(text)
@@ -183,11 +177,15 @@ def legal_review_package(text: str) -> Dict[str, Any]:
     sources = [source_record(item) for number in article_numbers for item in legal_search.search(number, max_results=1)]
     if not sources:
         sources = [{"source": source, "citation": "مصدر رسمي عام — يلزم ربط النتيجة بمادة محددة"} for source in OFFICIAL_SOURCES[:2]]
+    escalation = check_escalation(text, claim_amount)
     return {
         "obligations": obligations,
         "risks": risks,
         "evidence_checklist": evidence,
         "mentioned_articles": article_numbers,
         "sources": sources,
+        "scope_note": out_of_scope_note,
+        "escalation": escalation,
         "quality": {"grounding": "جزئي", "requires_lawyer_review": True, "reason": "الاستخراج حتمي جزئيًا والمادة النافذة يجب التحقق منها"},
+        "disclaimer": policies.get_disclaimer(),
     }

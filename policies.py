@@ -71,6 +71,13 @@ INFORMATION_GAP_POLICY = {
 }
 
 
+OUT_OF_SCOPE_KEYWORDS = {
+    "الأحوال الشخصية": ["زواج", "طلاق", "نفقة", "حضانة", "ميراث", "وصية", "نسب", "خلع", "مهر"],
+    "النزاعات التجارية البحتة": ["شراكة تجارية", "بيع وشراء بضاعة", "توريد بضائع", "عقد توريد", "شركة مساهمة", "نزاع مساهمين"],
+    "القضايا الجنائية": ["جريمة", "سرقة", "قتل", "احتيال", "نصب", "جناية", "جنحة", "تزوير", "رشوة"],
+}
+
+
 class Policies:
     """سياسات عمل المنصة — مرجع للقرارات التشغيلية."""
 
@@ -99,9 +106,18 @@ class Policies:
         return RISK_POLICY["disclaimer_ar"]
 
     def is_in_scope(self, topic: str) -> bool:
-        """يتحقق مما إذا كان الموضوع ضمن نطاق اختصاص المنصة."""
-        out = SYSTEM_USE_POLICY["out_of_scope"]
-        return not any(t in topic for t in out)
+        """
+        يتحقق مما إذا كان الموضوع ضمن نطاق اختصاص المنصة.
+        ← إصلاح المرحلة صفر: كانت تطابق اسم الفئة حرفيًا فقط ("الأحوال الشخصية"
+        كنص) فلا تكتشف نصًا فعليًا عن طلاق أو نفقة أو حضانة ما لم يذكر المصطلح
+        حرفيًا — أي كانت عمليًا معطّلة على أي نص حقيقي. أصبحت تفحص كلمات دلالية
+        فعلية لكل فئة عبر OUT_OF_SCOPE_KEYWORDS.
+        """
+        text_lower = (topic or "").lower()
+        for category, keywords in OUT_OF_SCOPE_KEYWORDS.items():
+            if category in topic or any(kw in text_lower for kw in keywords):
+                return False
+        return True
 
 
 policies = Policies()

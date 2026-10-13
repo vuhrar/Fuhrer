@@ -1,8 +1,17 @@
 # legal_tools_advanced.py
 """
-الأدوات القانونية المتقدمة — النسخة الاحترافية v2.0
-إصلاح كامل لجميع الأعطال + ميزات جديدة
-المبادئ: Single Responsibility, Clean Contracts, Full Error Handling
+⚠️ مُهمَل منذ المرحلة صفر لإعادة الهيكلة (راجع legal_tools.py) ⚠️
+هذا الملف لم يُعد نقطة الحقيقة. server.py وlegal_intelligence.py لا يستوردان
+منه شيئًا بعد الآن. تم نقل LegalCaseClassifier وLegalSearchEngine وLegalInfoExtractor
+إلى legal_tools.py كما هما. أما LegalEntitlementsCalculator فقد أُعيد بناؤها بالكامل
+هناك لأن تعويض الفصل التعسفي هنا (calculate_eosb) كان يحسب بصيغة لا تطابق نص
+المادة 77 فعليًا — راجع التعليق التوضيحي أعلى legal_tools.py للتفاصيل والدليل الرقمي.
+CaseStrengthAnalyzer وLegalRebuttalGenerator وLegalDocumentGenerator وLegalDeadlinesTracker
+وLegalSlipDetector لم تُنقل بعد (بعضها يحتاج إعادة تصميم، لا نقل حرفي) — لا تعتمد
+عليها في مسار عمل حي. يمكن حذف هذا الملف بأمان بعد التأكد أن لا كود آخر خارج
+هذا المستودع (مثل web/ القديمة إن وُجدت) يستورد منه مباشرة.
+
+الأدوات القانونية المتقدمة — النسخة الاحترافية v2.0 (تاريخية)
 """
 
 import re

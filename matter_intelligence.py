@@ -33,6 +33,119 @@ def _contradictions(matter: Dict[str, Any]) -> List[Dict[str, Any]]:
     return items
 
 
+def _all_manual_text(facts: List[Dict], claims: List[Dict]) -> Dict[str, set]:
+    from legal_tools import info_extractor
+    dates, amounts, articles = set(), set(), set()
+    for f in facts:
+        blob = f"{f.get('title','')} {f.get('description','')}"
+        if f.get("event_date"):
+            dates.add(str(f["event_date"])[:10])
+        dates.update(info_extractor.extract_dates(blob))
+        amounts.update(info_extractor.extract_amounts(blob))
+    for c in claims:
+        blob = f"{c.get('title','')} {c.get('notes','')} {c.get('legal_basis','')}"
+        amounts.update(info_extractor.extract_amounts(blob))
+        articles.update(info_extractor.extract_articles(blob))
+    return {"dates": dates, "amounts": amounts, "articles": articles}
+
+
+def cross_reference_documents(matter: Dict[str, Any], document_texts: Dict[str, str]) -> Dict[str, Any]:
+    """
+    محرك الربط بين المستندات والوقائع/الطلبات المُدخلة يدويًا (المرحلة 2).
+
+    ما يفعله فعليًا: يستخرج التواريخ والمبالغ والمواد من نص كل مستند مرفوع
+    (عبر legal_tools.info_extractor، مبني ومُختبر أصلًا في المرحلة صفر)،
+    ويقارنها بما أُدخل يدويًا في الوقائع والطلبات. أي قيمة تظهر في مستند
+    ولا تظهر في أي واقعة أو طلب مُدخل تُرفَع كـ"معلومة غير مُلتقَطة بعد" —
+    ليست اتهامًا بخطأ، بل تذكيرًا صريحًا بمراجعة المستند.
+
+    حد صادق يجب معرفته: هذه مطابقة نصية حرفية (سلسلة نص إلى سلسلة نص)، لا
+    فهم دلالي. "12,000 ريال" في مستند و"12000" في واقعة مُدخلة يدويًا قد
+    لا تتطابقان رغم أنهما نفس المبلغ فعليًا. كذلك لا يحاول هذا الإصدار كشف
+    "تعارض" (رقمان مختلفان لنفس البند) تلقائيًا لأن ذلك يتطلب مطابقة أي
+    مبلغ في المستند يقابل أي بند في الواقعة دلاليًا — خطوة أعقد ستُبنى لاحقًا
+    بثقة بعد التحقق من نمط بيانات فعلي حقيقي، لا افتراضًا نظريًا الآن. هذا
+    الإصدار متعمَّد أضيق نطاقًا لكن **موثوق فيما يدّعيه فعلًا**: تغطية لا
+    اكتشاف تعارض.
+    """
+    from legal_tools import info_extractor
+
+    facts, claims, documents = matter.get("facts", []), matter.get("claims", []), matter.get("documents", [])
+    manual = _all_manual_text(facts, claims)
+
+    findings: List[Dict[str, Any]] = []
+    documents_analyzed = 0
+    for doc in documents:
+        text = document_texts.get(doc.get("id"), "")
+        if not text.strip():
+            continue
+        documents_analyzed += 1
+        extracted = info_extractor.extract_all(text)
+        filename = doc.get("filename", "مستند")
+
+        new_dates = sorted(set(extracted["dates"]) - manual["dates"])
+        if new_dates:
+            findings.append({"type": "تاريخ في المستند غير مسجَّل كواقعة", "document_id": doc.get("id"), "document": filename, "values": new_dates, "action": f"راجع هذا التاريخ في «{filename}» وأضف واقعة مطابقة إن كان ذا صلة."})
+
+        new_amounts = sorted(set(extracted["amounts"]) - manual["amounts"])
+        if new_amounts:
+            findings.append({"type": "مبلغ في المستند غير مرتبط بأي طلب أو واقعة", "document_id": doc.get("id"), "document": filename, "values": new_amounts, "action": f"تحقق إن كان هذا المبلغ في «{filename}» يخص طلبًا قائمًا أو يستدعي طلبًا جديدًا."})
+
+        new_articles = sorted(set(extracted["articles"]) - manual["articles"])
+        if new_articles:
+            findings.append({"type": "مادة مذكورة في المستند وغير مستخدمة كأساس لأي طلب", "document_id": doc.get("id"), "document": filename, "values": new_articles, "action": f"راجع إن كانت هذه المادة في «{filename}» تدعم طلبًا إضافيًا لم يُدرَج بعد."})
+
+    return {
+        "documents_analyzed": documents_analyzed,
+        "documents_with_no_text": len(documents) - documents_analyzed,
+        "findings": findings,
+        "scope": "تغطية (معلومات في المستندات غير ملتقطة يدويًا) — لا يكشف تعارضًا بين رقمين بعد؛ راجع الوصف الكامل في التوثيق.",
+        "disclaimer": "استخراج آلي بمطابقة نصية حرفية للمقارنة فقط؛ لا يثبت صحة أي واقعة ولا يغني عن قراءة المستند كاملًا.",
+    }
+
+
+def analyze_correspondence_for_matter(matter: Dict[str, Any], document_texts: Dict[str, str]) -> Dict[str, Any]:
+    """يجمع مستندات القضية الموسومة kind='مراسلة' ويمرر نصوصها لمحرك correspondence_intelligence (المرحلة 4)."""
+    from correspondence_intelligence import analyze_correspondence
+
+    items = []
+    for doc in matter.get("documents", []):
+        if doc.get("kind") != "مراسلة":
+            continue
+        text = document_texts.get(doc.get("id"), "")
+        if not text.strip():
+            continue
+        meta = _doc_meta(doc)
+        items.append({"id": doc.get("id"), "text": text, "date": meta.get("date"), "channel": meta.get("channel")})
+
+    if not items:
+        return {"items_analyzed": 0, "note": "لا توجد مستندات بنوع 'مراسلة' مرفوعة لهذه القضية بعد."}
+    return analyze_correspondence(items)
+
+
+def draft_amicable_settlement_for_matter(matter: Dict[str, Any], dispute_category_key: str = "dismissal", plaintiff_contact: str = "") -> Dict[str, Any]:
+    """يبني طلب تراضي مباشرة من بيانات قضية حقيقية مُخزَّنة: الوقائع والطلبات وفهرس المستندات."""
+    from amicable_settlement import AmicableSettlementRequestDrafter
+
+    facts = [{"date": f.get("event_date"), "text": (f.get("title") or "") + ((": " + f["description"]) if f.get("description") else "")} for f in matter.get("facts", [])]
+    claims = [{"title": c.get("title", ""), "legal_basis": c.get("legal_basis", "")} for c in matter.get("claims", [])]
+    evidence = [d.get("filename", "") for d in matter.get("documents", []) if d.get("filename")]
+
+    return AmicableSettlementRequestDrafter().draft(
+        plaintiff_name=matter.get("client_name", "") or "", plaintiff_contact=plaintiff_contact,
+        defendant_name=matter.get("opposing_party", "") or "", workplace_location=matter.get("jurisdiction", "") or "",
+        dispute_category_key=dispute_category_key, facts=facts, claims=claims, evidence=evidence,
+    )
+
+
+def analyze_matter_deep(matter: Dict[str, Any], document_texts: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    """analyze_matter() الأصلية دون أي تغيير + طبقة الربط الجديدة إن توفرت نصوص المستندات. تراجعية التوافق بالكامل."""
+    result = analyze_matter(matter)
+    if document_texts:
+        result["document_cross_reference"] = cross_reference_documents(matter, document_texts)
+    return result
+
+
 def analyze_matter(matter: Dict[str, Any]) -> Dict[str, Any]:
     facts = matter.get("facts", [])
     claims = matter.get("claims", [])
