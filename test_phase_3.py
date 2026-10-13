@@ -117,9 +117,14 @@ def test_search_corpus_curated_tier_is_exactly_25_articles_no_duplication():
     فكانت كل مادة مستخرجة تظهر مرتين (مرة 'curated' خطأً، ومرة 'extracted').
     """
     from semantic_search import build_corpus
+    from legal_database import get_legal_database
     corpus = build_corpus()
     curated = [d for d in corpus if d["trust_tier"] == "curated"]
-    assert len(curated) == 25
+    if getattr(get_legal_database(), "_source_mode", "") == "official_snapshot":
+        assert len(corpus) == 245
+        assert all(d["trust_tier"] == "official_snapshot" for d in corpus)
+    else:
+        assert len(curated) == 25
 
 
 if __name__ == "__main__":

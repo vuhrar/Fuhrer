@@ -118,7 +118,7 @@ class TfidfSearchIndex:
         self.vectorizer = TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 5), min_df=1)
         self.matrix = self.vectorizer.fit_transform(texts) if texts else None
 
-    def search(self, query: str, category: Optional[str] = None, max_results: int = 10, min_score: float = 0.1) -> List[Dict[str, Any]]:
+    def search(self, query: str, category: Optional[str] = None, max_results: int = 10, min_score: float = 0.12) -> List[Dict[str, Any]]:
         if not query or self.matrix is None:
             return []
         candidates = self.corpus
