@@ -50,6 +50,16 @@ app.mount("/static", StaticFiles(directory=os.path.join(WEB_DIR, "static")), nam
 legal_repository = repository_from_env()
 
 
+@app.get("/", include_in_schema=False)
+async def home():
+    return FileResponse(os.path.join(WEB_DIR, "templates", "index.html"), media_type="text/html; charset=utf-8")
+
+
+@app.get("/manifest.json", include_in_schema=False)
+async def manifest():
+    return FileResponse(os.path.join(WEB_DIR, "manifest.json"), media_type="application/manifest+json")
+
+
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         response = await call_next(request)

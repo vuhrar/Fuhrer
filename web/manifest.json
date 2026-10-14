@@ -1,0 +1,11 @@
+{
+  "name": "FüLaw | مساحة العمل القانونية",
+  "short_name": "FüLaw",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0e1621",
+  "theme_color": "#0e1621",
+  "description": "مساحة عمل خاصة لإدارة النزاعات العمالية والمصادر القانونية"
+}
