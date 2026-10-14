@@ -1,34 +1,16 @@
-# خيارات استضافة FüLaw المهنية — 2026-10-14
 
-## الترشيح
+## بدائل أسهل تسجيلًا للتجربة
 
-الاختيار الأنسب لتطبيق FüLaw هو خادم Ubuntu دائم بمواصفات 2–4 vCPU و4–8 GB RAM و80 GB SSD على الأقل، مع Docker وTailscale ونسخ احتياطي يومي منفصل. إذا كانت الأولوية للسهولة والإدارة من داخل Manus، فـ Cloud Computer Standard يعطي 2 vCPU و4 GB RAM و70 GB وتوجد له لقطات يومية حتى 10 نسخ. إذا كانت الأولوية لأقل تكلفة مدفوعة، فـ Hetzner Cloud أو Vultr. إذا كانت الأولوية لشركة سحابية كبرى وتجربة تشغيل سهلة، فـ AWS Lightsail أو DigitalOcean.
+Render هو الأسهل تقريبًا للنشر من GitHub دون إدارة VM. خطته المجانية تشغّل Python Web Service، لكنها تنام بعد 15 دقيقة دون طلبات، وتفقد الملفات المحلية وقواعد SQLite عند إعادة التشغيل أو النشر؛ كما أن قاعدة Postgres المجانية تنتهي بعد 30 يومًا. لذلك تصلح للتجربة فقط، لا لملفات القضايا.
 
-## الخيارات
+Koyeb يقدم Free Instance سهلة النشر، لكنها محدودة بـ 0.1 vCPU و512 MB RAM و2 GB SSD، ولا تدعم Volumes، وتدخل في السكون بعد ساعة من عدم وجود حركة. تصلح لعرض أولي بسيط، لا لمعالجة OCR أو تخزين قضايا.
 
-- Oracle Always Free: يصل رصيد Always Free إلى 2 OCPU و12 GB RAM على Ampere A1، مع 200 GB Block Volume وخمس نسخ احتياطية. هو أفضل خيار مجاني، لكن توفر السعة والتسجيل ليسا مضمونين، وقد تُسترد الآلات الخاملة وفق شروط Oracle.
-- Hetzner Cloud: صفحة التكلفة تعرض CX23 بموارد 2 vCPU و4 GB و40 GB NVMe، وخططًا أكبر، مع 20 TB نقل في مواقع الاتحاد الأوروبي وادعاء GDPR-compliant. يجب التحقق من التوفر والسعر النهائي في الحساب قبل الإنشاء.
-- Vultr Regular Performance: يعرض 2 vCPU و4 GB و80 GB و3 TB نقل بسعر 20 دولارًا شهريًا، أو High Performance بسعر 24 دولارًا لنفس الذاكرة تقريبًا مع 100 GB NVMe و5 TB نقل. النسخ الاحتياطية لقطات إضافية.
-- DigitalOcean Basic: يعرض 2 vCPU و4 GiB و80 GiB SSD و4,000 GiB نقل بسعر 24 دولارًا شهريًا. الواجهة والوثائق ممتازة، لكن النسخ الاحتياطية المدارة تضاف إلى التكلفة.
-- AWS Lightsail: يعرض 2 vCPU و4 GB و80 GB و4 TB نقل بسعر 24 دولارًا شهريًا، مع IP ثابت وDNS ومراقبة وSSH من اللوحة. مناسب لمن يريد AWS بطريقة مبسطة، وتبقى اللقطات/النسخ الاحتياطية وموارد إضافية ضمن الحساب.
-- Azure VM: قوي للمؤسسات والتكاملات، لكن المثال الرسمي D2s v6 (2 vCPU و8 GiB) يقارب 73.73 دولارًا شهريًا قبل الأقراص ونقل البيانات، لذلك هو أعلى كلفة لهذا التطبيق الصغير.
-- Manus Cloud Computer Standard: خادم Ubuntu دائم مُدار داخل Manus، 2 vCPU و4 GB و70 GB، بسعر 30 دولارًا شهريًا، مع IP عام ونسخ يومية كاملة حتى 10 نسخ. هو الأسهل للتنفيذ بواسطة Manus، لكنه ليس مجانيًا.
+Railway يقدم تجربة لمدة تصل إلى 30 يومًا مع رصيد أولي 5 دولارات، ثم يتحول إلى رصيد مجاني شهري محدود قدره دولار واحد. أحجام Volumes لحسابات التجربة تُحذف بعد انتهاء فترة التجربة إذا لم تتم الترقية. ليس استضافة مجانية دائمة.
 
-## القرار
+Hugging Face Spaces غير مناسب حاليًا لتشغيل FüLaw الخاص: Docker وGradio على الحسابات الشخصية يحتاجان خطة مدفوعة، وFree CPU ينام عند الخمول، والتخزين الافتراضي غير دائم. كما أن Space العام يكشف التطبيق والمصدر، بينما Space الخاص لا يتيح التطبيق عبر URL للآخرين.
 
-للتجربة المجانية: Oracle Always Free.
-لأفضل تكلفة مدفوعة: Hetzner Cloud أو Vultr High Performance حسب توفر المنطقة.
-لأسهل تشغيل احترافي: Manus Cloud Computer Standard أو AWS Lightsail.
-لبيئة مؤسسية: Azure، لكنه غير اقتصادي كبداية.
+بديل مجاني سهل إذا كان لديك كمبيوتر يبقى مفتوحًا هو تشغيل FüLaw محليًا وربطه عبر Cloudflare Tunnel. Cloudflare Tunnel ينشئ اتصالًا من الخادم المحلي دون فتح منفذ عام، لكن الجهاز والبرنامج يجب أن يبقيا يعملين، ولذلك لا يعد VM دائمًا.
 
-لا يكفي اختيار المزود وحده لحماية القضايا. يجب تفعيل تشفير ملفات التطبيق، حفظ مفتاح FULAW_STORAGE_KEY منفصلًا، منع المنفذ العام، استخدام Tailscale أو وصول HTTPS محمي، وفصل النسخ الاحتياطية عن الخادم.
+الخلاصة: Render هو الأسهل للتجربة السريعة، Cloudflare Tunnel مع كمبيوتر شخصي هو الأسهل لاستضافة مجانية مستمرة مشروطة ببقاء الكمبيوتر، وOracle Always Free هو البديل المجاني الأقرب إلى VM دائم مستقل. لا توجد خدمة مجانية سهلة التسجيل تجمع في الوقت نفسه بين VM دائم، تخزين دائم، وخصوصية مناسبة لقضايا حقيقية دون قيود أو تحقق.
 
-## المصادر الرسمية
-
-- https://docs.oracle.com/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm
-- https://www.hetzner.com/cloud/cost-optimized/
-- https://www.vultr.com/pricing/
-- https://www.digitalocean.com/pricing/droplets
-- https://aws.amazon.com/lightsail/pricing/
-- https://azure.microsoft.com/en-us/pricing/details/virtual-machines/linux/
-- Manus Cloud Computer reference داخل بيئة المشروع.
+مصادر البدائل: https://render.com/docs/free — https://www.koyeb.com/docs/reference/instances — https://docs.railway.com/pricing/free-trial — https://huggingface.co/docs/hub/en/spaces-overview — https://developers.cloudflare.com/tunnel/get-started/
