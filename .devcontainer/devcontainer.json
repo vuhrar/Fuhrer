@@ -10,7 +10,7 @@
     }
   },
   "postCreateCommand": "bash .devcontainer/setup.sh",
-  "postAttachCommand": "echo 'FüLaw Codespace جاهز. شغل التطبيق عبر bash .devcontainer/start.sh'",
+  "postAttachCommand": "bash .devcontainer/start-background.sh",
   "remoteEnv": {
     "FUHRER_DATA_DIR": "/workspaces/.fulaw-data",
     "FULAW_PRIVATE_MODE": "true"
