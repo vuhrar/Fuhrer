@@ -10,6 +10,7 @@
     }
   },
   "postCreateCommand": "bash .devcontainer/setup.sh",
+  "postStartCommand": "bash .devcontainer/start-background.sh",
   "postAttachCommand": "bash .devcontainer/start-background.sh",
   "remoteEnv": {
     "FUHRER_DATA_DIR": "/workspaces/.fulaw-data",
@@ -18,7 +19,7 @@
   "portsAttributes": {
     "8000": {
       "label": "FüLaw private app",
-      "onAutoForward": "notify",
+      "onAutoForward": "openPreview",
       "visibility": "private"
     }
   },
